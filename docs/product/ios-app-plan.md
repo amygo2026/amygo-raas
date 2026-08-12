@@ -7,7 +7,7 @@
 
 | App | 仓库 | 用户 | 职责 | 现状 |
 |---|---|---|---|---|
-| **Customer**（先做） | [`amygo-customer-ios`](../../../../amygo-customer-ios) | 终端顾客 / 住客 / 下单人 | 选场景、发起服务请求、跟踪自己的任务 | **iOS-M0 建仓** |
+| **Customer**（先做） | 本地 `../amygo-customer-ios` → 远端建议 `amygo2026/amygo-customer-ios` | 终端顾客 / 住客 / 下单人 | 选场景、发起服务请求、跟踪自己的任务 | **Cust-M0 已本地建仓** |
 | **Ops / Field**（后做） | 待建 `amygo-ops-ios` | 店长、礼宾、班组长、Show 值守 | 机队监控、任务干预、告警、Show 预检 | **现阶段用 Web Console**（`console-web`） |
 
 共同约束：
