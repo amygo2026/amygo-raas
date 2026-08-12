@@ -2,6 +2,7 @@ package ai.amygo.raas.adapter.simulator;
 
 import ai.amygo.raas.adapter.AdapterDescriptor;
 import ai.amygo.raas.adapter.RobotAdapter;
+import ai.amygo.raas.application.EventSequenceGuard;
 import ai.amygo.raas.domain.robot.RobotSnapshot;
 import ai.amygo.raas.domain.shared.CommandEnvelope;
 import ai.amygo.raas.domain.shared.CommandReceipt;
@@ -35,7 +36,9 @@ public class SimulatorRobotAdapter implements RobotAdapter {
     private static final Logger log = LoggerFactory.getLogger(SimulatorRobotAdapter.class);
 
     private final InMemoryStore store;
+    private final EventSequenceGuard sequenceGuard;
     private final String faultMode;
+    private final long progressDelayMs;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final Map<String, AtomicLong> sequences = new ConcurrentHashMap<>();
     private final CopyOnWriteArrayList<Consumer<RobotEvent>> listeners = new CopyOnWriteArrayList<>();
@@ -43,10 +46,14 @@ public class SimulatorRobotAdapter implements RobotAdapter {
 
     public SimulatorRobotAdapter(
             InMemoryStore store,
-            @Value("${raas.simulator.fault-mode:none}") String faultMode
+            EventSequenceGuard sequenceGuard,
+            @Value("${raas.simulator.fault-mode:none}") String faultMode,
+            @Value("${raas.simulator.progress-delay-ms:150}") long progressDelayMs
     ) {
         this.store = store;
+        this.sequenceGuard = sequenceGuard;
         this.faultMode = faultMode == null ? "none" : faultMode;
+        this.progressDelayMs = Math.max(0, progressDelayMs);
     }
 
     @Override
@@ -56,6 +63,22 @@ public class SimulatorRobotAdapter implements RobotAdapter {
 
     @Override
     public Set<String> capabilities(String robotId) {
+        return store.findRobot(robotId)
+                .map(r -> capabilitiesForProfile(r.getModelProfile()))
+                .orElseGet(() -> Set.of("navigation", "delivery", "cleaning", "docking", "compartment"));
+    }
+
+    private static Set<String> capabilitiesForProfile(String modelProfile) {
+        String p = modelProfile == null ? "" : modelProfile.toLowerCase();
+        if (p.contains("cleaning") || p.contains("clean")) {
+            return Set.of("navigation", "cleaning", "docking");
+        }
+        if (p.contains("hotel")) {
+            return Set.of("navigation", "delivery", "docking", "compartment");
+        }
+        if (p.contains("delivery") || p.contains("deliver")) {
+            return Set.of("navigation", "delivery", "docking", "compartment");
+        }
         return Set.of("navigation", "delivery", "cleaning", "docking", "compartment");
     }
 
@@ -88,7 +111,8 @@ public class SimulatorRobotAdapter implements RobotAdapter {
         }
 
         emit(command, "command.accepted", Map.of("commandType", command.commandType()), null);
-        scheduler.schedule(() -> simulateProgress(command), 200, TimeUnit.MILLISECONDS);
+        long startDelay = Math.max(1, progressDelayMs);
+        scheduler.schedule(() -> simulateProgress(command), startDelay, TimeUnit.MILLISECONDS);
         return new CommandReceipt(command.commandId(), CommandReceiptStatus.ACCEPTED, null, "accepted by simulator");
     }
 
@@ -109,16 +133,21 @@ public class SimulatorRobotAdapter implements RobotAdapter {
             if ("duplicate_events".equalsIgnoreCase(faultMode)) {
                 RobotEvent running = buildEvent(command, "task.running", Map.of("progress", 10), null);
                 publish(running);
-                publish(running); // duplicate same eventId must be ignored by control plane
+                publish(running);
             } else if ("out_of_order".equalsIgnoreCase(faultMode)) {
-                // emit completed before running (control plane should not jump illegally)
-                emit(command, "task.completed", Map.of("progress", 100, "result", "SUCCEEDED"), 2L);
-                emit(command, "task.running", Map.of("progress", 10), 1L);
+                // After command.accepted, force a gap so completed arrives before running.
+                long base = sequences.computeIfAbsent(command.robotId(), id -> new AtomicLong()).get();
+                emit(command, "task.completed", Map.of("progress", 100, "result", "SUCCEEDED"), base + 2);
+                emit(command, "task.running", Map.of("progress", 10), base + 1);
             } else {
                 emit(command, "task.running", Map.of("progress", 10), null);
-                Thread.sleep(150);
+                if (progressDelayMs > 0) {
+                    Thread.sleep(progressDelayMs);
+                }
                 emit(command, "task.progress.updated", Map.of("progress", 60), null);
-                Thread.sleep(150);
+                if (progressDelayMs > 0) {
+                    Thread.sleep(progressDelayMs);
+                }
                 emit(command, "task.completed", Map.of("progress", 100, "result", "SUCCEEDED"), null);
             }
         } catch (InterruptedException e) {
@@ -135,9 +164,17 @@ public class SimulatorRobotAdapter implements RobotAdapter {
     }
 
     private RobotEvent buildEvent(CommandEnvelope command, String eventType, Map<String, Object> payload, Long forcedSeq) {
-        long seq = forcedSeq != null
-                ? forcedSeq
-                : sequences.computeIfAbsent(command.robotId(), id -> new AtomicLong()).incrementAndGet();
+        AtomicLong counter = sequences.computeIfAbsent(
+                command.robotId(),
+                id -> new AtomicLong(sequenceGuard.currentWatermark("SIMULATOR", id))
+        );
+        long seq;
+        if (forcedSeq != null) {
+            seq = forcedSeq;
+            counter.updateAndGet(v -> Math.max(v, forcedSeq));
+        } else {
+            seq = counter.incrementAndGet();
+        }
         Object taskId = command.payload() == null ? null : command.payload().get("taskId");
         Map<String, Object> body = new LinkedHashMap<>(payload == null ? Map.of() : payload);
         return new RobotEvent(
@@ -165,7 +202,7 @@ public class SimulatorRobotAdapter implements RobotAdapter {
 
     private String mapCapability(String commandType) {
         return switch (commandType) {
-            case "DELIVERY_START", "DELIVER" -> "delivery";
+            case "DELIVERY_START", "DELIVER", "HOTEL_DELIVERY_START" -> "delivery";
             case "CLEAN", "CLEANING_START" -> "cleaning";
             case "RETURN_TO_DOCK" -> "docking";
             case "OPEN_COMPARTMENT" -> "compartment";

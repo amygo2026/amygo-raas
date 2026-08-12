@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amygo.ai/raas/contracts/events/show-cue-v0.1.json",
+  "title": "ShowCueCommand",
+  "description": "High-level venue show cue — no joint/torque/continuous motion fields allowed.",
+  "type": "object",
+  "required": ["showRunId", "tenantId", "siteId", "robotId", "cueType", "idempotencyKey", "assetId", "assetVersion", "assetHash"],
+  "properties": {
+    "showRunId": { "type": "string" },
+    "tenantId": { "type": "string" },
+    "siteId": { "type": "string" },
+    "robotId": { "type": "string" },
+    "cueType": {
+      "type": "string",
+      "enum": ["PREFLIGHT", "ARM", "START", "ABORT", "STANDBY"]
+    },
+    "idempotencyKey": { "type": "string" },
+    "assetId": { "type": "string" },
+    "assetVersion": { "type": "string" },
+    "assetHash": { "type": "string" },
+    "expiresAt": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}

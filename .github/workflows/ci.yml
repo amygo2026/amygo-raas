@@ -20,6 +20,21 @@ jobs:
       - name: Test
         run: ./gradlew test --no-daemon
 
+  adapter-tck:
+    name: Adapter TCK (required)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: control-plane
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Run Adapter TCK
+        run: ./gradlew test --tests ai.amygo.raas.adapter.AdapterTckTest --no-daemon
+
   console-web:
     runs-on: ubuntu-latest
     defaults:

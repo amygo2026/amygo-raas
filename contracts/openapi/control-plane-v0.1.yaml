@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: AMYGO RaaS Control Plane API
-  version: 0.1.0
-  description: Week 1 MVP vertical-loop API (Simulator-backed)
+  version: 0.7.0
+  description: Week 7 HOTEL_DELIVERY + persistent event sequence watermarks
 servers:
   - url: http://localhost:8080
 paths:
@@ -20,7 +20,7 @@ paths:
         '200':
           description: Task list
     post:
-      summary: Create and queue a delivery task
+      summary: Create and queue a service task (DELIVERY | CLEANING | HOTEL_DELIVERY)
       parameters:
         - in: header
           name: X-Tenant-Id
@@ -38,12 +38,16 @@ paths:
             schema:
               type: object
               properties:
-                taskType: { type: string, example: DELIVERY }
+                taskType:
+                  type: string
+                  enum: [DELIVERY, CLEANING, HOTEL_DELIVERY]
+                  example: HOTEL_DELIVERY
                 payload: { type: object }
       responses:
         '201':
           description: Created task
-  /api/v1/tasks/{taskId}:
+        '400':
+          description: Unsupported taskType (CAPABILITY_NOT_SUPPORTED)  /api/v1/tasks/{taskId}:
     get:
       summary: Get task
       parameters:
@@ -53,9 +57,19 @@ paths:
           schema: { type: string }
       responses:
         '200': { description: Task }
+  /api/v1/tasks/{taskId}/timeline:
+    get:
+      summary: Task timeline (events + audit)
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Timeline items }
   /api/v1/tasks/{taskId}/cancel:
     post:
-      summary: Cancel task
+      summary: Cancel non-terminal task
       parameters:
         - in: path
           name: taskId
@@ -63,11 +77,62 @@ paths:
           schema: { type: string }
       responses:
         '200': { description: Canceled task }
+  /api/v1/tasks/{taskId}/fail:
+    post:
+      summary: Operator fail non-terminal task
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200': { description: Failed task }
+  /api/v1/tasks/{taskId}/restart:
+    post:
+      summary: Restart from terminal task (creates new task / attempt lineage)
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: New queued task }
+        '409': { description: Source task not terminal }
   /api/v1/robots:
     get:
-      summary: List robots
+      summary: List robots (multi-dimensional status)
       responses:
         '200': { description: Robots }
+  /api/v1/robots/{robotId}/reconnect:
+    post:
+      summary: Operator reconnect / resync after disconnect (Mock path)
+      description: |
+        Marks robot ONLINE, pulls adapter snapshot, writes Audit `robot.reconnected`,
+        then schedules queued work. Pair with `raas.ops.offline-policy`.
+      parameters:
+        - in: path
+          name: robotId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-Site-Id
+          schema: { type: string }
+        - in: header
+          name: X-Actor-Id
+          schema: { type: string }
+      responses:
+        '200': { description: Robot view after reconnect }
+        '404': { description: Robot not found for tenant/site }
   /api/v1/events:
     get:
       summary: List robot/task events
@@ -78,3 +143,84 @@ paths:
       summary: List audit entries
       responses:
         '200': { description: Audit log }
+  /api/v1/ops/metrics:
+    get:
+      summary: Sequence watermark and outbox publisher metrics
+      responses:
+        '200': { description: Ops metrics }
+  /api/v1/adapters:
+    get:
+      summary: Registered adapters and support levels
+      responses:
+        '200': { description: Adapter map }
+  /api/v1/bindings:
+    get:
+      summary: List vendor device bindings for tenant/site
+      responses:
+        '200': { description: Bindings }
+    post:
+      summary: Bind opaque vendorDeviceRef to robot (MOCK_BOUND without formal docs)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [robotId, vendorType, vendorDeviceRef]
+              properties:
+                robotId: { type: string }
+                vendorType: { type: string, enum: [PUDU, KEENON, UNITREE, SIMULATOR] }
+                vendorDeviceRef: { type: string }
+                notes: { type: string }
+      responses:
+        '201': { description: Created binding }
+  /api/v1/bindings/{bindingId}:
+    delete:
+      summary: Unbind device (audited)
+      parameters:
+        - in: path
+          name: bindingId
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Deleted }
+  /api/v1/commands/unknown:
+    get:
+      summary: List commands in UNKNOWN state (no blind retry)
+      responses:
+        '200': { description: Unknown command records }
+  /api/v1/shows:
+    post:
+      summary: Create Unitree Show run (Mock agent)
+      responses:
+        '201': { description: ShowRun }
+  /api/v1/shows/agent:
+    get:
+      summary: Show agent descriptor
+      responses:
+        '200': { description: Adapter descriptor }
+  /api/v1/shows/{showRunId}/preflight:
+    post:
+      summary: Preflight show assets / safety checklist
+      responses:
+        '200': { description: PREFLIGHT_OK }
+  /api/v1/shows/{showRunId}/arm:
+    post:
+      summary: Arm show (ready for start)
+      responses:
+        '200': { description: ARMED }
+  /api/v1/shows/{showRunId}/start:
+    post:
+      summary: Start show (idempotent; may return UNKNOWN)
+      responses:
+        '200': { description: Start receipt }
+  /api/v1/shows/{showRunId}/start/reconcile:
+    post:
+      summary: Reconcile UNKNOWN start with same idempotencyKey (at-most-once)
+      responses:
+        '200': { description: Reconcile receipt }
+  /api/v1/shows/{showRunId}/abort:
+    post:
+      summary: Abort show run
+      responses:
+        '200': { description: ABORTED }

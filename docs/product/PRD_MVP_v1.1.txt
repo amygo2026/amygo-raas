@@ -6,17 +6,17 @@ RaaS 机器人即服务平台
 客户提交一个“物理世界任务”，平台自动选择合适的站点、机器人、能力与执行路径，并可观察、可恢复、可审计。
 
 文档版本
-1.1（首批厂商与场景范围修订）
+1.2（增加 iOS App 开发计划；Week3 厂商 Mock/绑定基线）
 目标版本
 RaaS MVP v1.0｜Commercial Service + Show Orchestration
 基线日期
-2026 年 8 月 11 日（范围修订）
+2026 年 8 月 12 日（移动端范围补充）
 内部 Demo
 2026 年 12 月 18 日
 目标发布
 2027 年 2 月 12 日
 状态
-范围修订评审基线
+范围修订评审基线 + 移动端补充
 适用范围
 产品、架构、研发、测试、交付、试点运营与厂商合作
 内部资料｜未经授权不得对外传播
@@ -52,6 +52,10 @@ A. 商用服务机器人运营；B. 表演机器人编排。两者共用主数�
 2026-08-11
 范围修订基线
 首批改为擎朗/普渡商业清洁、餐饮/酒店配送，以及宇树表演机器人；Legacy 降为非阻断工作流
+1.2
+2026-08-12
+移动端补充
+增加 iOS Field/Ops App 开发计划；明确与 Android Legacy、Web Console 的分工与节奏
 
 0.2 批准角色
 角色
@@ -147,6 +151,9 @@ D6
 发布策略
 12 月先交付内部综合 Demo，2 月完成真实站点 Pilot；任一厂商接口资料或硬件未就绪时，不以模拟器冒充生产接入。
 
+◆  落地进度（2026-08-12，详见 docs/engineering/dev-plan-1.1-progress.md）
+四周计划：Day0～Week2 完成；Week3/4 为 Mock 证据门（正式沙箱未到）。D1–D5 工程骨架已立；D6 内部 Demo 能力（Ops + 指挥中心大屏）增强中，Pilot 未开始。
+
 ● 一句话定义  AMYGO RaaS 是“Physical Service & Show Control Plane”：业务方声明清洁、配送、酒店服务或演出计划，平台选择合适的机器人/机器人组，在本地安全边界内执行，并对全过程可观察、可干预、可追溯。
 
 2. 背景、机会与战略对齐
@@ -169,7 +176,7 @@ com-amygo-persis
 用于映射/迁移；新库重建通用模型
 Amygo / AmygoPad
 叫车端与现场辅助操作经验
-本期不作为主前端；后续可做 Requester/Field App
+本期不作为主前端；经验迁移到 Web Ops Console，并规划独立 iOS / Android Field App（见附录 E）
 SmartControl
 人工接管和调试经验
 演进为 Remote Assist；v1.0 不做安全关键遥控
@@ -2195,7 +2202,81 @@ Open-RMF、VDA 5050 与 ROS 2（作为后续通用适配参考，不替代首批
 i  说明
 技术版本、许可证、厂商实现和适用标准在正式采购/发布前应再次核验。本 PRD 定义产品和工程基线，不替代功能安全、法律、隐私、出口管制或认证机构的正式意见。
 
+附录 E｜iOS App 开发计划（PRD v1.2）
+E.1 产品定位
+产品名（工作名）
+AMYGO Field iOS（现场运营 / 场馆值守伴侣 App）
+平台
+iOS 17+（iPhone 优先；iPad 适配为 P1）
+用户
+站点店长/服务员、酒店礼宾、清洁班组长、Show 现场操作员（有人值守）
+与 Web Console 关系
+Web = 多站点运营与配置主控；iOS = 现场发起/观察/轻干预；不替代 RBAC 管理与资产审批
+与 Legacy Android
+`app-android2026` 仅作旅程与交互参考；iOS 全新工程，调用新 Control Plane API，不移植乘客/支付语义
+
+E.2 明确边界
+允许（高层）
+创建/查看配送·清洁·酒店送物任务；查看机器人多维状态；取消/失败申报；接收告警；Show 预检清单确认与 Start/Abort 请求（需权限+审计）
+禁止（v1.0）
+云端低层遥控（速度/转向/关节/力矩）；绕过本地急停；未审批 Show 资产下发；跨租户数据浏览
+认证
+OIDC（企业 IdP）；设备证书可选；所有写操作带 actor 并写 Audit
+离线
+允许短时只读缓存；写操作必须在线且幂等；断网提示不可盲重试
+
+E.3 能力分期
+阶段
+目标版本窗口
+范围
+退出条件
+iOS-M0 工程脚手架
+S3–S4（约 2026-10）
+Xcode 工程、CI、TestFlight、OIDC 登录壳、租户/站点选择、只读任务/机器人列表
+内测包可安装；对接 Staging API
+iOS-M1 现场配送闭环
+S5–S6（PUDU 餐厅阶段）
+创建配送、状态时间线、取消/失败、推送告警、桌台/取餐口扫码或点选
+试点站用 iPhone 完成 ≥20 次真实或沙箱配送观察
+iOS-M2 清洁/酒店
+S6–S7
+清洁计划查看、房间送物、柜门/PIN 展示（最小化隐私）、电梯等待提示
+与 Web 同 SLA 口径；隐私评审通过
+iOS-M3 Show 值守
+S8–S10
+预检 checklist、Cue 只读进度、Abort 请求、现场操作员签到
+单机/多机彩排时 iOS 可作为值守终端之一
+iOS-GA
+v1.0 Pilot（2027-02）
+与 Pilot 站点同步发布；崩溃率/推送可达/权限审计达标
+Pilot Go-No-Go 清单含 iOS 证据
+
+E.4 技术约束
+项
+要求
+客户端
+Swift / SwiftUI；网络层统一调用 Control Plane OpenAPI（与 Console 同源契约）
+推送
+APNs；告警类别与 Web/Email 一致；高风险动作不可仅靠推送确认
+安全
+ATS；证书钉扎评估；无 Secret 入包；越狱检测为 P1
+商店
+先 TestFlight 内测；App Store 公共上架非 v1.0 阻断（企业分发可替代）
+自动化
+快照/UI 冒烟 + API contract 客户端生成；真机回归挂 HIL 窗口
+
+E.5 人员与依赖
+建议投入：iOS 1–2 FTE（S3 起），与后端 API / 推送 / 设计共用契约。
+依赖：Control Plane 任务/机器人/审计 API 稳定（A2 后）；OIDC；PUDU/KEENON 沙箱或 Mock；Show 阶段依赖 Venue 安全门。
+非依赖：Open-RMF、VDA 直连、厂商原生 App SDK（除非正式授权且隔离在 Adapter）。
+
+E.6 验收口径（摘要）
+同租户隔离与权限拒绝有自动化证据。
+现场创建的任务在 Web Console 与 Audit 可追溯。
+无低层运动控制 API 被客户端引用（静态检查 + 代码评审）。
+试点站点至少一名现场角色仅用 iOS 完成主路径操作并签字。
+
 
 END OF DOCUMENT
 RaaS MVP v1.0 的成功标准不是“页面和接口完成”，而是：PUDU、KEENON 和 Unitree 真实机器人在真实站点/场馆完成可重复、可恢复、可审计且边界清晰的清洁、配送、酒店送物与表演闭环。
-AMYGO.AI  ·  2026-08-11
+AMYGO.AI  ·  2026-08-12

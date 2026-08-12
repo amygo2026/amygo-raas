@@ -14,6 +14,7 @@ public class Task {
     private final Map<String, Object> payload;
     private String assignedRobotId;
     private String activeAssignmentId;
+    private int attemptNo = 1;
     private long version;
     private final Instant createdAt;
     private Instant updatedAt;
@@ -37,6 +38,13 @@ public class Task {
     public Map<String, Object> getPayload() { return Map.copyOf(payload); }
     public String getAssignedRobotId() { return assignedRobotId; }
     public String getActiveAssignmentId() { return activeAssignmentId; }
+    public int getAttemptNo() { return attemptNo; }
+    public void setAttemptNo(int attemptNo) {
+        if (attemptNo < 1) {
+            throw new IllegalArgumentException("attemptNo must be >= 1");
+        }
+        this.attemptNo = attemptNo;
+    }
     public long getVersion() { return version; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
@@ -72,6 +80,15 @@ public class Task {
 
     public void markCanceled() {
         transitionTo(TaskStatus.CANCELED);
+    }
+
+    public void markNeedsIntervention() {
+        markNeedsIntervention("needs_intervention");
+    }
+
+    public void markNeedsIntervention(String reason) {
+        transitionTo(TaskStatus.NEEDS_INTERVENTION);
+        this.payload.put("interventionReason", reason == null ? "needs_intervention" : reason);
     }
 
     private void transitionTo(TaskStatus next) {

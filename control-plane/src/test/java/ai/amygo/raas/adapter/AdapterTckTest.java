@@ -1,6 +1,7 @@
 package ai.amygo.raas.adapter;
 
 import ai.amygo.raas.adapter.simulator.SimulatorRobotAdapter;
+import ai.amygo.raas.application.EventSequenceGuard;
 import ai.amygo.raas.domain.shared.Actor;
 import ai.amygo.raas.domain.shared.CommandEnvelope;
 import ai.amygo.raas.domain.shared.CommandReceipt;
@@ -33,7 +34,7 @@ class AdapterTckTest {
         store = new InMemoryStore();
         store.saveRobot(new ai.amygo.raas.domain.robot.Robot(
                 "robot-tck-1", "tenant-demo", "site-demo", "TCK Bot", "sim.delivery.v1", "SIMULATOR"));
-        adapter = new SimulatorRobotAdapter(store, "none");
+        adapter = new SimulatorRobotAdapter(store, new EventSequenceGuard(null), "none", 0L);
         events.clear();
         adapter.subscribe(events::add);
     }
@@ -73,7 +74,7 @@ class AdapterTckTest {
 
     @Test
     void failModeRejectsSubmit() {
-        SimulatorRobotAdapter failing = new SimulatorRobotAdapter(store, "fail_on_submit");
+        SimulatorRobotAdapter failing = new SimulatorRobotAdapter(store, new EventSequenceGuard(null), "fail_on_submit", 0L);
         CommandReceipt receipt = failing.submit(command("DELIVERY_START", "idem-fail", Instant.now().plus(Duration.ofMinutes(1))));
         assertThat(receipt.status()).isEqualTo(CommandReceiptStatus.REJECTED);
         assertThat(receipt.reasonCode()).isEqualTo("VENDOR_TEMPORARY_ERROR");

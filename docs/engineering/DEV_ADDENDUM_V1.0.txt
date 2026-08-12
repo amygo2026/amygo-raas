@@ -953,6 +953,9 @@ Week 4 09/07–09/11
 PUDU 超时/断网/回调；Unitree Show Agent 原型；监控、Runbook、Demo
 内部 Demo；无重复执行；故障注入证据齐全
 
+进度看板（持续更新）：docs/engineering/dev-plan-1.1-progress.md
+（截至 2026-08-12：Day0–Week2 完成；Week3/4 为 Mock 证据门，正式沙箱未到。）
+
 11.2 首批 Issue
 Issue
 内容

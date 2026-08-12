@@ -63,5 +63,29 @@ public class DemoDataLoader {
                 "sim.hotel.v1",
                 "SIMULATOR"
         ));
+        store.saveRobot(new Robot(
+                "robot-pudu-mock-01",
+                tenantId,
+                siteId,
+                "PUDU Mock Delivery 01",
+                "pudu.delivery.mock.v1",
+                "PUDU"
+        ));
+        store.saveRobot(new Robot(
+                "robot-keenon-mock-01",
+                tenantId,
+                siteId,
+                "KEENON Mock Delivery 01",
+                "keenon.delivery.mock.v1",
+                "KEENON"
+        ));
+        store.saveRobot(new Robot(
+                "robot-unitree-show-mock-01",
+                tenantId,
+                siteId,
+                "Unitree Show Mock 01",
+                "unitree.show.mock.v1",
+                "UNITREE"
+        ));
     }
 }

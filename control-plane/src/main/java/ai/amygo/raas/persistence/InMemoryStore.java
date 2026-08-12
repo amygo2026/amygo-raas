@@ -7,11 +7,13 @@ import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.time.Instant;
 
 @Repository
 public class InMemoryStore {
@@ -20,6 +22,7 @@ public class InMemoryStore {
     private final Map<String, String> commandIdempotency = new ConcurrentHashMap<>();
     private final List<RobotEvent> events = new CopyOnWriteArrayList<>();
     private final List<Map<String, Object>> auditLogs = new CopyOnWriteArrayList<>();
+    private final Map<String, Map<String, Object>> unknownCommands = new ConcurrentHashMap<>();
 
     public void saveRobot(Robot robot) {
         robots.put(robot.getId(), robot);
@@ -78,11 +81,40 @@ public class InMemoryStore {
         return out;
     }
 
+    public List<RobotEvent> listEventsForTask(String tenantId, String taskId) {
+        List<RobotEvent> out = new ArrayList<>();
+        for (RobotEvent e : events) {
+            if (e.tenantId().equals(tenantId) && taskId.equals(e.taskId())) {
+                out.add(e);
+            }
+        }
+        return out;
+    }
+
     public void appendAudit(Map<String, Object> entry) {
         auditLogs.add(entry);
     }
 
     public List<Map<String, Object>> listAudit(String tenantId) {
         return auditLogs.stream().filter(a -> tenantId.equals(a.get("tenantId"))).toList();
+    }
+
+    public void rememberUnknownCommand(String commandId, String taskId, String idempotencyKey, String reasonCode) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("commandId", commandId);
+        row.put("taskId", taskId);
+        row.put("idempotencyKey", idempotencyKey);
+        row.put("reasonCode", reasonCode);
+        row.put("status", "UNKNOWN");
+        row.put("recordedAt", Instant.now().toString());
+        unknownCommands.put(commandId, row);
+    }
+
+    public Optional<Map<String, Object>> findUnknownCommand(String commandId) {
+        return Optional.ofNullable(unknownCommands.get(commandId));
+    }
+
+    public Collection<Map<String, Object>> listUnknownCommands() {
+        return List.copyOf(unknownCommands.values());
     }
 }

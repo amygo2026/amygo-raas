@@ -1,6 +1,7 @@
 package ai.amygo.raas.domain.robot;
 
 import java.time.Instant;
+import java.util.Objects;
 
 public class Robot {
     private final String id;
@@ -81,6 +82,16 @@ public class Robot {
 
     public void markExecuting() {
         this.missionStatus = MissionStatus.EXECUTING;
+        this.version++;
+    }
+
+    public void setConnectivityStatus(ConnectivityStatus connectivityStatus) {
+        this.connectivityStatus = Objects.requireNonNull(connectivityStatus);
+        this.version++;
+    }
+
+    public void markOnline() {
+        this.connectivityStatus = ConnectivityStatus.ONLINE;
         this.version++;
     }
 

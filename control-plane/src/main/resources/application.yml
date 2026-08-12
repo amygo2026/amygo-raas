@@ -13,19 +13,48 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info
-
 raas:
   demo-tenant-id: tenant-demo
   demo-site-id: site-demo
+  ops:
+    # fail_on_disconnect | hold_on_disconnect
+    offline-policy: fail_on_disconnect
+  outbox:
+    poll-interval-ms: 500
+  pudu-mock:
+    # none | timeout_unknown | disconnect_mid_mission | duplicate_callback
+    fault-mode: none
+  unitree-show:
+    simulate-disconnect-on-start: false
   simulator:
     # none | fail_on_submit | expire | duplicate_events | out_of_order
     fault-mode: none
+    progress-delay-ms: 150
     model-profiles:
       - sim.delivery.v1
       - sim.cleaning.v1
       - sim.hotel.v1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: amygo-raas-control-plane
+  tracing:
+    sampling:
+      probability: 1.0
+  observations:
+    annotations:
+      enabled: true
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
