@@ -41,6 +41,7 @@
 
 1. PUDU 正式沙箱 → Beta/HIL（关键路径）  
 2. Show Agent 迁 Edge 脚手架  
-3. iOS-M0 独立仓  
+3. **Customer iOS 独立仓**（`amygo-customer-ios`，Cust-M0）— 用户请求服务；Ops 移动端后置，现用 Web  
 4. OTLP → Tempo/Jaeger  
-5. 酒店电梯/门禁联动（有楼宇 API 后）
+5. 酒店电梯/门禁联动（有楼宇 API 后）  
+6. Ops iOS（`amygo-ops-ios`）在 Web 稳态后再开工
