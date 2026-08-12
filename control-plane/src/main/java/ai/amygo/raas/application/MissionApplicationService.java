@@ -230,6 +230,12 @@ public class MissionApplicationService {
                 store.saveRobot(r);
             });
         }
+        // Adapter cancel may re-enter onRobotEvent on this monitor and already terminalize the task.
+        if (task.getStatus().isTerminal()) {
+            audit(tenantId, actor, "task.canceled", "Task", taskId, Map.of("via", "adapter_or_race"));
+            scheduleNext(tenantId, task.getSiteId());
+            return task;
+        }
         task.markCanceled();
         store.saveTask(task);
         audit(tenantId, actor, "task.canceled", "Task", taskId, Map.of());
