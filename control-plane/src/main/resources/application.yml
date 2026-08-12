@@ -1,0 +1,16 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: amygo-raas-control-plane
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+raas:
+  demo-tenant-id: tenant-demo
+  demo-site-id: site-demo

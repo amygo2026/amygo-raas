@@ -1,0 +1,25 @@
+---
+description: AMYGO RaaS engineering core rules
+alwaysApply: true
+---
+
+# AMYGO RaaS Engineering Core
+
+1. Before changing code, list affected modules, files, interfaces, databases, risks, and tests.
+2. Do not mix large refactors and new features in the same PR.
+3. Vendor APIs, SDKs, DTOs, and error codes may only live in the corresponding Adapter module.
+4. Domain layer must not depend on PUDU, KEENON, Unitree, Zeus, or other vendor types.
+5. Do not globally rename Car→Robot or Order→Task from Legacy.
+6. Every robot command must include commandId, correlationId, tenantId, siteId, robotId, expiresAt, idempotencyKey, and actor.
+7. Duplicate commands, duplicate webhooks, out-of-order events, timeouts, and restarts must be handled safely.
+8. Cloud must never send speed, steering angle, joint angles, torque, or continuous low-level motion control.
+9. High-risk human actions, permission/asset/config changes must write Audit Log.
+10. All business reads/writes must enforce tenant/site isolation; never trust request-body tenantId as authority.
+11. Database changes only via versioned migrations; no manual production edits.
+12. Legacy changes require Characterization Tests first.
+13. New API/event/DB changes must update OpenAPI/schema/sample/contract tests.
+14. Never commit secrets, tokens, certificates, customer PII, or production logs.
+15. Do not invent vendor APIs; without formal docs only implement Port/Mock/open questions.
+16. Unsupported capabilities must return CAPABILITY_NOT_SUPPORTED explicitly.
+17. End of task: run build, unit, integration, contract, lint, and migration checks when applicable.
+18. Output must include changed files, behavior diff, test evidence, open issues, and rollback approach.

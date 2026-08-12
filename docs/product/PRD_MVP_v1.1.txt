@@ -1,0 +1,2201 @@
+AMYGO.AI
+RaaS 机器人即服务平台
+产品需求文档（PRD）与 MVP v1.0 开发计划
+首批接入擎朗 / 普渡清洁与配送机器人，并建设宇树表演机器人编排能力
+产品愿景
+客户提交一个“物理世界任务”，平台自动选择合适的站点、机器人、能力与执行路径，并可观察、可恢复、可审计。
+
+文档版本
+1.1（首批厂商与场景范围修订）
+目标版本
+RaaS MVP v1.0｜Commercial Service + Show Orchestration
+基线日期
+2026 年 8 月 11 日（范围修订）
+内部 Demo
+2026 年 12 月 18 日
+目标发布
+2027 年 2 月 12 日
+状态
+范围修订评审基线
+适用范围
+产品、架构、研发、测试、交付、试点运营与厂商合作
+内部资料｜未经授权不得对外传播
+
+0. 文档控制与评审口径
+项目
+内容
+产品工作名
+AMYGO RaaS Control Plane
+文档目标
+定义首批擎朗、普渡、宇树接入的产品边界、功能需求、技术约束、开发节奏与发布门槛
+首批产品线
+商业清洁；餐厅送餐/回收；酒店送物；宇树舞台/展会表演
+产品聚类
+A. 商用服务机器人运营；B. 表演机器人编排。两者共用主数据、身份、审计和运营底座
+试点对象
+2–3 个站点/场馆；3 个真实厂商适配器；8–25 台机器人；至少 4 类任务模板
+研发基线
+13–15 FTE；S0 + 11 个双周 Sprint + 1 个发布周；节假日预留缓冲
+决策原则
+云端只下发高层任务/Cue；导航、避障、运动控制、急停和动作安全留在本地
+
+0.1 版本记录
+版本
+日期
+状态
+变更摘要
+1.0
+2026-08-11
+原评审基线
+以室内工业/仓储 AMR 与 Legacy Zeus 为首期重点
+1.1
+2026-08-11
+范围修订基线
+首批改为擎朗/普渡商业清洁、餐饮/酒店配送，以及宇树表演机器人；Legacy 降为非阻断工作流
+
+0.2 批准角色
+角色
+批准内容
+建议负责人
+签署
+业务负责人
+首个垂直、试点客户、预算与商业退出条件
+待指定
+__________
+产品负责人
+范围、优先级、验收指标和版本路线
+待指定
+__________
+技术负责人
+架构、接口、安全边界、技术债务
+待指定
+__________
+交付/运营负责人
+站点准备、SAT、SLA 与支持流程
+待指定
+__________
+
+◆  评审规则
+所有“P0”需求均为 v1.0 发布阻断项；P1 在不影响关键路径时纳入，未完成可通过书面豁免进入后续版本；P2 默认不进入 v1.0。范围变更必须同时更新日期、人员或退出条件。
+
+目录
+01
+1. 执行摘要与关键决策
+02
+2. 背景、机会与战略对齐
+03
+3. 产品定义、目标与成功指标
+04
+4. 用户角色与核心场景
+05
+5. MVP 范围、边界与依赖
+06
+6. 产品与技术架构
+07
+7. 领域模型与状态机
+08
+8. 功能需求清单
+09
+9. 控制台与体验要求
+10
+10. API、事件与适配器契约
+11
+11. 非功能需求与安全边界
+12
+12. 数据、分析与运营指标
+13
+13. Legacy MaaS 迁移方案
+14
+14. MVP v1.0 开发计划
+15
+15. 测试、发布与运维计划
+16
+16. 风险、决策门与后续路线图
+17
+附录 A–D：权限、接口、需求追踪与参考资料
+
+1. 执行摘要与关键决策
+RaaS MVP v1.0 的目标不是重做一套单一厂商“机器人 FMS”，而是建立统一的 Physical Service & Show Control Plane。首批产品覆盖擎朗、普渡的商业清洁、餐厅配送与酒店送物，以及宇树机器人在舞台、展会和品牌活动中的表演编排。平台对上接收清洁计划、配送订单、酒店服务请求和演出计划；对下通过厂商适配器与场馆 Edge 执行，并统一提供设备注册、任务/Cue 编排、状态监控、异常恢复和审计。
+旧 MaaS 系统继续作为领域知识资产：订单生命周期、站点/区域、任务状态、实时通信、远程支持、权限与审计可迁入新模型；但 Legacy Zeus 接入不再是 v1.0 发布阻断项。首批工程资源优先保障 PUDU Open Platform、KEENON 合作接口与 Unitree SDK2 三条真实接入链路。
+2027-02-12 目标发布 27 周日历基线
+13–15 FTE 推荐团队 含机器人/表演工程
+3 条真实适配路径 PUDU + KEENON + Unitree
+2–3 个试点站点/场馆 8–25 台机器人
+4 类首发场景 清洁/餐厅/酒店/表演
+2026-12-18 内部 Demo 跨品类可演示闭环
+
+1.1 六项核心决策
+编号
+决策
+结论
+D1
+首批产品范围
+以“商用服务机器人运营”作为主产品线，统一清洁、餐厅配送和酒店送物；以“宇树表演编排”作为第二条受控产品线。
+D2
+控制边界
+云端负责业务任务、资源分配、演出计划和审计；机器人导航、避障、运动控制、动作执行与功能安全留在机器人/场馆本地。
+D3
+架构形态
+共用 Control Plane + 两类执行平面：Service Mission Plane 与 Show Execution Plane；表演动作资产在本地校验和执行。
+D4
+厂商接入
+PUDU 优先使用 Open Platform；KEENON 以合作 API/SDK 为准；Unitree 采用 SDK2/CycloneDDS，首选具备二次开发能力的 EDU/开发配置。
+D5
+Legacy 策略
+MaaS 代码与 Zeus 作为知识和后续适配资产保留，但不阻断首批商用机器人/表演机器人发布。
+D6
+发布策略
+12 月先交付内部综合 Demo，2 月完成真实站点 Pilot；任一厂商接口资料或硬件未就绪时，不以模拟器冒充生产接入。
+
+● 一句话定义  AMYGO RaaS 是“Physical Service & Show Control Plane”：业务方声明清洁、配送、酒店服务或演出计划，平台选择合适的机器人/机器人组，在本地安全边界内执行，并对全过程可观察、可干预、可追溯。
+
+2. 背景、机会与战略对齐
+2.1 现有 MaaS 资产判断
+现有 `fms2026` 与 `app-android2026` 已覆盖乘客订单、车辆运营、电子围栏、轨迹、远程控制、车端长连接和现场遥控。其领域结构与 RaaS 的任务、资源、区域、状态、指令和异常处理高度同构，因此应作为“领域知识和迁移输入”，而非新平台代码底座。
+现有资产
+RaaS 价值
+处理策略
+com-amygo-appserver
+账号、订单生命周期、幂等与用户旅程经验
+抽象为 Task/API；不复用乘客/支付语义
+com-amygo-fms
+运营区域、车辆状态、轨迹、权限、日志、客服流程
+迁移规则与数据；重做前端
+com-amygo-vcm
+长连接、协议编解码、遥测和指令闭环
+提炼为 Legacy Zeus Adapter；协议不再是平台内核
+com-amygo-persis
+历史实体和数据关系
+用于映射/迁移；新库重建通用模型
+Amygo / AmygoPad
+叫车端与现场辅助操作经验
+本期不作为主前端；后续可做 Requester/Field App
+SmartControl
+人工接管和调试经验
+演进为 Remote Assist；v1.0 不做安全关键遥控
+
+2.2 战略对齐
+公司 2026 年机器人本土化战略要求掌握产品需求、系统架构、任务调度、设备管理、遥测、远程访问和客户门户。本次范围仍遵循“首期最多两条产品线”：第一条是共享室内移动与运营底座的商用服务机器人（清洁、餐饮、酒店），第二条是限定场馆、限定动作资产、有人值守的表演机器人。
+聚焦：首个版本只做两条边界清晰的产品线，并锁定擎朗、普渡、宇树；不扩展到医疗、仓储重载、公共道路或任意机器人。
+控制：租户、任务、演出计划、设备身份、日志、场地图、远程访问与客户 API 由 AMYGO 控制。
+本地优先：配送/清洁的导航安全与表演动作执行均在机器人或场馆 Edge；云端只同步必要运营数据和高层命令。
+可审计：设备身份、固件/动作资产版本、任务/Cue、远程访问、人工干预与异常恢复必须留痕。
+2.3 产品机会
+客户痛点
+当前做法
+RaaS 价值
+擎朗/普渡设备各有控制台
+多个账号、地图、报表与告警口径
+统一设备、任务、事件、审计与跨站点运营视图
+清洁、餐饮、酒店流程割裂
+靠人工排班、按钮呼叫或单店配置
+可复用任务模板、班次、SLA、异常和运营报表
+酒店送物涉及电梯/门禁/隐私
+每项目一次性集成
+标准化 Elevator/IoT/PMS 连接器和最小化客房数据
+表演依赖个人和遥控器
+动作文件、音乐、机器人分组和开场操作分散
+Show Asset、Robot Group、彩排、预检、Cue 与审计闭环
+厂商接口和固件差异大
+项目现场临时适配
+Adapter Profile、能力协商、合同测试和版本矩阵
+难以证明 ROI 与稳定性
+只有厂商日志，缺少业务口径
+配送 SLA、清洁完成、演出成功率、干预率和支持成本
+
+3. 产品定义、目标与成功指标
+3.1 产品定位
+◆ 定位  面向商业服务机器人与表演机器人的多租户接入、任务/演出编排和运营平台，提供“业务 API + 厂商适配器 + 站点/场馆 Edge + 运营控制台”。它不是机器人操作系统，不替代厂商导航、运动控制或功能安全系统。
+
+3.2 MVP 产品目标
+编号
+目标
+说明
+G1
+统一资源与能力模型
+在同一租户下管理 Site/Venue、Fleet、Robot、Model、Capability、Map/Zone、Adapter 与版本。
+G2
+商用任务闭环
+清洁、餐厅配送、酒店送物从创建、排队、执行、暂停、恢复、失败到完成使用一致任务底座。
+G3
+三厂商真实接入
+完成 PUDU、KEENON、Unitree 三个 Adapter Profile，并至少各用一种真实型号完成 HIL/SAT。
+G4
+场景产品化
+提供清洁计划与报告、餐厅桌台/回收流程、酒店客房/电梯/柜门流程，而非只做点到点导航。
+G5
+表演编排闭环
+支持动作资产版本、机器人分组、彩排、预检、Standby/Arm/Start/Abort、Cue 同步与运行报告。
+G6
+可运营与可审计
+实时状态、告警、维护、角色权限、操作审计、诊断、发布回滚和试点运行手册齐备。
+
+3.3 非目标（v1.0 明确不做）
+不开发 SLAM、定位、避障、路径跟踪、清洁算法、机械臂运动规划或机器人安全 PLC 逻辑。
+不从云端持续流式发送关节角、力矩或低层步态命令；宇树动作必须在场馆本地加载、校验和执行。
+不承诺无人值守的人群中自由表演、跨场馆远程低层操控，也不把云端“停止”宣称为安全急停。
+不在 v1.0 覆盖擎朗、普渡、宇树全部型号；只承诺经接口授权、实机 HIL 与 SAT 验证的 Model Profile。
+不建设完整硬件商城、跨供应商交易市场、发票和复杂计费；v1.0 只记录站点、设备、任务和用量。
+不建设完整 OTA 平台；v1.0 记录固件、适配器与动作资产版本，提供升级审计和回滚接口。
+不把 Legacy Zeus、旧自动驾驶车辆、乘客 App 或公共道路 MaaS 能力作为首发必交。
+不支持任意 BPMN 或在线生成未知舞蹈动作；仅使用版本化任务模板、有限条件和已审批动作资产。
+3.4 MVP 成功指标
+指标
+目标
+口径
+厂商覆盖
+PUDU、KEENON、Unitree 各至少 1 种真实型号通过 HIL/SAT
+生产发布前；模拟器不得替代真实型号签署
+场景覆盖
+清洁、餐厅配送、酒店送物、表演 4 类模板全部闭环
+至少 2 个真实站点/场馆
+商用任务成功率
+受控试点任务成功率 ≥95%
+排除人工取消、本地急停和客户设施不可用
+清洁任务可追踪率
+≥95% 任务有区域、模式、起止、结果和异常报告
+以厂商接口可提供的数据为上限，缺失项明确标记
+酒店设施联动
+电梯/门/柜门联动成功率 ≥95%
+至少 100 次受控测试；失败可人工恢复
+表演运行成功率
+彩排后正式 ShowRun 成功率 ≥98%
+受控舞台、已批准资产、现场操作员在场
+表演 Cue 同步
+2–4 台机器人启动偏差 P95 ≤100 ms
+同一局域网、动作本地预加载；不评价关节级同步
+状态新鲜度
+商用机器人 P95 ≤5 秒；Show 运行状态 P95 ≤1 秒
+健康站点网络；媒体流不纳入
+断网恢复
+商用任务不中断或按本地策略安全结束；重连 60 秒内同步
+不重复执行、不重复开柜门、不重复启动表演
+稳定性
+72 小时连续运行无 Sev-1；无不可恢复数据不一致
+RC/Pilot 环境
+安全与审计
+高风险操作、动作资产、远程访问 100% 可追溯
+无未豁免 Critical/High 漏洞
+
+4. 用户角色与核心场景
+4.1 用户角色
+角色
+典型人员/系统
+主要任务
+平台管理员
+AMYGO 平台运维/安全
+租户、版本、全局策略、审计、紧急禁用与厂商适配器治理
+租户管理员
+客户 IT/运营负责人
+用户、角色、站点/场馆、集成、数据策略与供应商授权
+清洁主管
+物业/酒店/商场清洁负责人
+清洁区域、班次、模式、耗材、异常和完成报告
+餐厅运营员
+餐厅经理/传菜员
+桌台、取餐口、送餐/回收任务、装载确认和异常处理
+酒店服务员
+前台/礼宾/客房服务
+客房送物、柜门/PIN、通知、电梯与超时回收
+Show Director
+活动导演/舞台监督
+Show Asset、节目单、机器人分组、彩排、Arm/Start/Abort
+Robot Operator
+宇树现场操作员
+预检、遥控器/急停、机器人摆位、动作验证和现场安全
+技术员
+现场或远程支持
+诊断、维护、日志、版本、适配器健康与故障恢复
+业务系统
+POS/KDS、PMS、BMS、活动控制系统
+创建任务/演出、接收状态和结果事件
+审计/管理层
+客户安全、质量、管理层
+查看报表、操作记录、服务 SLA 和导出
+
+4.2 核心用户旅程
+旅程
+端到端步骤
+J1 厂商与站点上线
+创建租户/站点或场馆 → 配置 Edge → 注册 Adapter/Profile → 绑定机器人 → 能力与版本检查 → HIL
+J2 清洁班次
+创建周期计划 → 分配区域/模式 → 机器人执行 → 低电/补水/断点续清 → 异常处置 → 报告
+J3 餐厅配送
+POS/运营员下单 → 到取餐点 → 装载确认 → 送达桌台 → 取货确认 → 返回/下一任务
+J4 酒店送物
+PMS/前台创建 → 装柜/PIN → 电梯/门禁联动 → 到房通知 → 取物 → 超时回收/返航
+J5 表演
+导入动作资产 → 绑定机器人组 → 彩排 → 预检 → Standby/Arm → 按 Cue 启动 → Abort/完成 → 报告
+J6 异常恢复
+机器人/设施/动作错误 → 告警 → 暂停/隔离/人工处理 → 重试/改派/终止 → Incident 关闭
+J7 审计复盘
+按任务/ShowRun 查看事件、命令、版本、操作人、耗时和异常 → 导出 KPI/SLA
+J8 新型号接入
+厂商资料 → Adapter Profile → 模拟器/合同测试 → HIL → 限定站点灰度 → Model Profile 发布
+
+4.3 代表性用户故事
+作为清洁主管，我希望按楼层、区域和班次创建每日清洁计划，并看到中断、补水、回充、断点续清和完成报告。
+作为餐厅运营员，我希望选择取餐口、桌台与回收点，确认装载后由合适机器人完成送餐或餐盘回收。
+作为酒店前台，我希望创建客房送物任务，使用一次性取件码，并追踪电梯、到房、取物、超时和返回状态。
+作为站点经理，我希望机器人断网后安全完成或暂停已接受任务，网络恢复后不重复开柜、送达或执行。
+作为 Show Director，我希望把已批准动作、音乐 Cue 和机器人分组组合成节目单，彩排和预检通过后才能 Arm。
+作为现场操作员，我希望在表演前检查电量、站位、通信、动作版本和安全区，并能在本地执行 Abort。
+作为技术员，我希望统一查看 PUDU、KEENON、Unitree 的原始错误、标准错误、版本矩阵和最近操作。
+作为集成工程师，我希望使用版本化 REST API、Webhook、PMS/POS/电梯连接器和 Adapter Profile，而不暴露厂商私有字段。
+作为平台管理员，我希望所有远程指令、动作资产审批、身份变更和适配器凭证操作都能按人、时间和对象审计。
+作为业务负责人，我希望分别看到配送 SLA、清洁完成率、表演成功率、机器人利用率、人工干预和支持成本。
+5. MVP 范围、边界与依赖
+5.1 v1.0 范围
+域
+包含内容
+Common Control Plane
+租户/IAM、站点/场馆、Robot Registry、Capability、Task/Show、Alert、Audit、API 与用量
+Service Mission Plane
+清洁计划/执行；餐厅送餐/回收；酒店送物；调度、超时、重试、回充与设施联动
+Show Execution Plane
+Show Asset、节目单、Robot Group、彩排、预检、Standby/Arm/Start/Abort、Cue 与报告
+Edge
+站点/场馆边缘代理、出站安全连接、离线缓存、命令幂等、状态同步、动作资产本地存储
+Adapters
+PUDU Open Platform Adapter；KEENON Partner Adapter；Unitree SDK2 Adapter；Legacy Zeus 为 P1
+Ops Console
+总览、商用任务、清洁、配送、酒店、Shows、机器人、告警、维护、集成和审计
+Integrations
+REST/OpenAPI、Webhook、POS/KDS、PMS、Elevator/IoT、可选 OSC/MIDI/Show Control
+Operations
+监控、日志、指标、Runbook、发布回滚、HIL/SAT、72 小时稳定性和现场培训
+
+5.2 关键边界
+边界
+规则
+任务层
+平台定义“做什么”、业务约束与完成条件；厂商系统定义“如何导航、清洁、送达或执行动作”。
+商用调度
+平台选择可执行机器人并管理队列；局部交通、路径和避障委托厂商 Fleet Manager/机器人。
+表演执行
+云端只编排 Show/Cue；动作包预加载到 Venue Edge/机器人，本地验证后执行，禁止公网关节级流式控制。
+设施联动
+电梯、门禁、柜门和 POS/PMS 通过独立连接器接入；设施失败不得绕过本地安全互锁。
+数据层
+默认不上传 LiDAR、原始视频/音频或高频关节流；酒店只保存完成服务所需的最少客房/取件信息。
+安全层
+急停、碰撞、速度、舞台安全区、制动和遥控器由机器人/场馆本地承担；云端 Abort 不是认证急停。
+型号承诺
+只有通过接口、许可证、HIL 和 SAT 的 Model Profile 才标记 Supported；官网产品列表不等于可接入。
+
+5.3 项目假设
+首期只建设两条产品线：共享室内移动与运营底座的商用服务机器人，以及受控场馆内的宇树表演机器人。
+PUDU 提供 Open Platform 账号、目标型号权限、测试租户和可用于远程管理/任务控制的正式接口。
+KEENON 提供合作 API/SDK、接口版本、调用限额、地区/固件兼容说明和至少一台目标型号测试机。
+Unitree 首台开发机采用支持二次开发的配置，优先 G1 EDU；也可经 G0 决策选择 H1/H1-2/Go2，并使用 SDK2/CycloneDDS。
+商用机器人已经具备厂商导航、避障和本地安全能力；RaaS 仅通过正式接口下发高层任务并读取状态。
+餐厅、酒店和清洁试点提供真实 SOP、地图/楼层、点位、班次与验收人员；酒店提供电梯/门禁/柜门测试环境。
+宇树表演仅在受控舞台或展区、固定安全边界、现场操作员、物理急停和已审批动作资产条件下运行。
+云账户、域名、证书、密钥、日志和动作资产仓库由 AMYGO 控制；Edge/Venue Controller 只需出站连接。
+v1.0 支持中英双语界面；不处理支付数据、公共道路行驶数据或长期保存酒店客人身份信息。
+Legacy MaaS 数据与 Zeus 硬件仅用于领域知识迁移和后续适配，不作为 v1.0 发布前提。
+5.4 外部依赖与最晚就绪日期
+依赖
+责任方
+最晚日期
+影响
+首批型号清单与采购/借测确认
+产品/采购/厂商
+2026-08-21
+无法冻结 Model Profile、HIL 和试点数量
+PUDU Open Platform 沙箱、文档和权限
+PUDU/合作方
+2026-08-21
+PUDU Adapter 与 12 月 Demo 阻断
+KEENON API/SDK、沙箱、限额和固件矩阵
+KEENON/合作方
+2026-08-28
+若缺失，KEENON 只能做合同/模拟验证，不能宣称生产支持
+Unitree 开发机、SDK2、动作资料和安全附件
+Unitree/机器人团队
+2026-08-28
+Show Engine、动作验证与安全评审阻断
+餐厅/酒店/清洁业务 SOP 与验收口径
+客户/产品/交付
+2026-09-04
+任务模板、UI 和 SAT 无法冻结
+POS/KDS、PMS、电梯/门禁/IoT 测试环境
+客户 IT/设施方
+2026-10-02
+餐厅/酒店端到端联调延期
+真实机器人与试点站点窗口
+厂商/客户/交付
+2026-10-19
+HIL、72h 和 SAT 阻断
+表演动作资产、音乐 Cue、场地和安全方案
+Show Director/安全/机器人
+2026-11-13
+正式彩排和多机器人验收阻断
+
+6. 产品与技术架构
+6.1 系统上下文
+
+图 1｜RaaS MVP v1.0 双执行平面逻辑架构
+6.2 部署单元与职责
+部署单元
+位置
+职责
+control-plane-api
+云
+同步 API、鉴权、租户/站点/机器人/任务/Show 主数据与查询
+control-plane-worker
+云
+商用调度、超时、Webhook、报表、异步事件与 Show 计划编排
+console-web
+云/CDN
+商用运营台、清洁/配送/酒店工作台、Show Console、告警和审计
+site-edge-agent
+站点
+出站 mTLS、Adapter 托管、离线缓存、命令幂等、状态重同步
+venue-show-controller
+场馆
+动作资产缓存/校验、机器人组、Cue 时钟、预检、本地 Start/Abort 和运行日志
+adapter-pudu
+站点
+PUDU Open Platform/设备接口映射、状态、任务和错误标准化
+adapter-keenon
+站点
+KEENON 合作 API/SDK 映射、型号能力和版本兼容
+adapter-unitree
+场馆
+Unitree SDK2/CycloneDDS，动作资产、状态、预检、Cue 和本地控制代理
+facility-connectors
+站点
+POS/KDS、PMS、Elevator、门禁、柜门、可选 OSC/MIDI
+robot-simulator
+开发/测试
+PUDU/KEENON/Unitree Profile、设施、断网、错误、低电和 Cue 偏差模拟
+
+6.3 架构决策：模块化单体优先
+MVP 阶段将租户、站点、机器人、任务、调度、告警和审计实现为一个代码仓中的独立模块，并通过领域事件/Outbox 解耦。部署上可分 API 与 Worker 两个进程，但共享同一逻辑数据库。只有当数据规模、发布节奏或团队边界真实出现压力时，再拆成独立服务。
+选择
+原因
+约束
+模块化单体
+减少分布式事务、部署和观测成本；适合 13–15 FTE 与 27 周双轨交付周期
+模块禁止直接跨边界访问表；通过 Application Service/事件交互
+独立 Edge/Adapter
+站点网络、协议依赖和生命周期与云端不同
+必须可单独升级、回滚和离线运行
+事件驱动但不过度中间件化
+保留可扩展性和异步能力
+v1.0 使用 Outbox + 轻量事件总线；避免引入多套队列
+
+6.4 推荐技术基线
+层
+建议
+云端后端
+Java 21 + Spring Boot 3.x；模块化单体、OpenAPI、Outbox；Service 与 Show 为独立领域模块
+前端
+React + TypeScript；站点地图、房间/桌台、清洁区域与 Show Timeline/Preflight UI
+事务/地理数据
+PostgreSQL + PostGIS；JSONB 保存厂商扩展与 Model Profile
+缓存/租约
+Redis；用于幂等、任务/机器人租约、Show Group 预留和短期状态
+设备消息
+HTTPS/WebSocket/MQTT；厂商接口按正式能力选择；原始 DDS 不跨公网
+Unitree Edge
+C++/Python + Unitree SDK2/CycloneDDS；使用厂商验证的 Ubuntu/CPU 架构，动作包本地执行
+事件
+Outbox + NATS JetStream 或托管消息系统；业务事件与高频状态分离
+身份与密钥
+OIDC；设备/Edge 独立证书；动作资产签名；Secrets Manager
+对象存储
+地图、诊断包、清洁报告附件、Show Asset/音频校验信息；短期签名 URL
+可观测性
+OpenTelemetry + Prometheus/Grafana + 集中日志；增加 Cue 延迟、动作版本和设施联动指标
+Edge 部署
+Service Edge 可用 Ubuntu 22.04/24.04；Unitree Edge 以 SDK2/硬件验证环境为准，禁止为统一版本强行升级
+
+6.5 开源组件定位
+组件/接口
+角色
+边界
+PUDU Open Platform
+首批商用 Adapter 基线
+以实际账号权限和型号能力为准；平台不假设官网全部型号均开放任务控制。
+KEENON Partner API/SDK
+第二条商用 Adapter
+必须取得合作文档、沙箱、固件矩阵与授权；无公开合同不进入 Supported。
+Unitree SDK2 / CycloneDDS
+表演机器人本地接入
+只在 Venue Edge/LAN 使用；云端不发布低层 DDS/关节命令。
+Open-RMF
+后续可选 Orchestrator Provider
+仅共享通道、门/电梯和多 Fleet 需要时启用；不作为 v1.0 商业场景前提。
+VDA 5050 / ROS 2
+后续通用接入能力
+保留 Adapter SDK 兼容性，但本版不以 VDA/ROS 代替三个厂商真实接口。
+
+▲  版本注意
+VDA 5050 3.0 于 2026 年发布，厂商生态可能仍存在 2.x。MVP 必须在 Sprint 0 确认试点设备真实支持版本，避免“按标准开发、现场无法联调”。
+
+6.6 仓库建议
+raas-platform/ ├── control-plane/ │   ├── tenant-site-robot/ │   ├── service-mission/        # cleaning / restaurant / hotel │   ├── show-orchestration/     # asset / group / rehearsal / cue │   ├── alert-incident/ │   └── audit-integration/ ├── console-web/ ├── edge-agent/ ├── venue-show-controller/ ├── adapters/ │   ├── pudu/ │   ├── keenon/ │   ├── unitree-sdk2/ │   └── legacy-zeus/            # P1 / non-blocking ├── facility-connectors/ │   ├── pos-kds/ │   ├── pms/ │   ├── elevator-iot/ │   └── show-control/ ├── contracts/                  # OpenAPI / AsyncAPI / profiles ├── simulator/ ├── assets/                     # show schemas / validators └── deploy/
+
+6.7 双执行平面与共享底座
+层次
+共享能力
+商用服务机器人
+宇树表演机器人
+Control Plane
+Tenant、Site/Venue、Robot、Capability、Identity、Audit、Alert、API
+TaskTemplate、Scheduler、SLA、设施联动
+ShowAsset、RobotGroup、Playlist、Cue、Approval
+Edge
+安全连接、缓存、版本、命令幂等、诊断
+厂商任务、状态、导航/清洁/配送结果
+动作资产缓存、预检、时钟、Start/Abort、运行日志
+本地安全
+云端不可绕过
+避障、速度、急停、门/电梯互锁
+物理急停、遥控器、舞台边界、动作限值、现场操作员
+7. 领域模型与状态机
+7.1 核心实体
+实体
+说明
+Tenant
+客户隔离边界；拥有用户、站点/场馆、数据策略、厂商授权和 API Client
+Site / Venue / Floor
+餐厅、酒店、商业物业或表演场馆；关联时区、地图、设施、Edge 和安全策略
+MapVersion / Zone / Station
+地图、清洁区域、桌台、取餐口、客房、充电点、舞台区、安全缓冲区
+Fleet / RobotModel / ModelProfile
+厂商、型号、固件、尺寸、负载、能力、接口版本和验证状态
+Robot
+唯一设备身份、位置、电量、模式、版本、当前任务/Show、所属 Fleet/Adapter
+Capability
+navigate、clean、delivery、secure_compartment、elevator、show_sequence、audio_sync 等
+AdapterInstance
+协议类型、版本、端点、凭证引用、健康、限额和支持能力
+TaskTemplate / Task
+清洁、餐厅、酒店业务任务；参数 Schema、SLA、步骤、重试和完成条件
+CleaningPlan / CleaningRun
+周期计划、区域、模式、班次、耗材、断点和结果报告
+DeliveryOrder / MissionExecution
+取货、装载、送达、通知、取件、回收、设施事件与结果
+ShowAsset / AssetVersion
+动作、姿态、音频/节拍元数据、适用型号、校验哈希和审批状态
+RobotGroup / ShowProgram / ShowRun
+表演机器人组、节目单、Cue Timeline、彩排/正式运行和运行结果
+Assignment / Reservation
+商用资源分配或表演机器人组/场地时间窗预留
+Alert / Incident / AuditEvent
+自动告警、人工处置、版本/命令/远程操作的不可抵赖记录
+
+7.2 能力模型
+能力模型用于把“机器人是什么”与“机器人能完成什么”分离。商用任务通过 requiredCapabilities 声明清洁模式、托盘/柜门、载重、电梯等约束；表演任务通过 compatibleModels、approvedActions、maxSpeedProfile、audioSync 和 localExecution 声明限制。所有能力均带版本，并由 Model Profile 与 HIL 证据支持。
+{   "robotId": "unitree-g1-01",   "modelProfile": "unitree/g1-edu@1.0",   "capabilities": {     "show.sequence": {"assetFormats": ["vendor_motion", "onnx"], "localExecution": true},     "show.sync": {"cue": true, "audio": true},     "safety": {"physicalEstopRequired": true, "operatorRequired": true}   },   "adapter": {"type": "unitree-sdk2", "transport": "cyclonedds"} }  {   "robotId": "pudu-clean-01",   "modelProfile": "pudu/cc1@validated",   "capabilities": {     "clean": {"modes": ["sweep", "scrub", "vacuum", "mop"]},     "resume": true, "charge": true   },   "adapter": {"type": "pudu-open-platform"} }
+
+7.3 Task 状态机
+状态
+含义
+主要迁移
+DRAFT
+草稿，仅 UI 本地/保存模板使用
+提交
+QUEUED
+校验通过，等待调度
+可取消、超时
+DISPATCHING
+正在生成候选与抢占租约
+成功分配/回到队列
+ASSIGNED
+已绑定机器人，等待执行确认
+开始/拒绝/超时
+EXECUTING
+机器人正在执行
+暂停/完成/失败/取消
+PAUSED
+任务暂停，可由运营或机器人触发
+恢复/取消/失败
+SUCCEEDED
+业务结果满足完成条件
+终态
+FAILED
+达到失败条件或重试耗尽
+终态；可克隆重试
+CANCELLED
+用户/系统取消且执行已安全停止
+终态
+EXPIRED
+超过截止时间且策略不允许继续
+终态
+
+7.4 Robot 状态模型
+状态
+说明
+PROVISIONING
+已注册但身份、Profile、地图或动作资产未完成
+OFFLINE
+心跳超时或 Edge/厂商端点不可达
+IDLE
+在线、健康、可参与商用调度
+RESERVED
+被 Assignment 或 Show Group 时间窗预留
+BUSY
+执行清洁/配送任务
+WAITING_HANDOFF
+等待装载、取件、桌台/客房确认或设施响应
+REFILLING / CHARGING
+补水/排污/回充/充电，不接收不兼容任务
+SHOW_READY
+动作资产、站位、网络、电量和预检通过
+ARMED / PERFORMING
+已进入表演待触发或正在执行；仅 Venue Edge 可推进
+PAUSED
+业务任务或表演已暂停；具体能力由 Adapter 声明
+ERROR / MAINTENANCE
+故障或人工维护，不参与新任务/Show
+E_STOP
+本地安全急停，仅反映状态；云端不能清除或绕过
+
+7.5 Command 状态与幂等
+每条下行命令必须包含全局唯一 `commandId`、目标机器人、期望状态版本、过期时间和幂等键。Edge/Adapter 对同一 `commandId` 只执行一次；重连后先同步未决命令和机器人当前任务，再决定重发或结束。
+状态
+定义
+CREATED
+云端已记录，尚未发往 Edge
+SENT
+已发往 Edge/Adapter
+ACKED
+适配器确认收到且接受
+RUNNING
+机器人报告执行中
+SUCCEEDED
+执行完成
+FAILED
+明确失败并带标准化错误码
+TIMEOUT
+超过确认/执行超时；不得直接假设未执行
+CANCELLED
+在可安全取消点完成取消
+
+7.6 场景执行状态
+执行对象
+关键状态
+说明
+CleaningRun
+QUEUED → TRANSIT → CLEANING → REFILL/CHARGE → RESUME → COMPLETED/FAILED
+允许断点续清、区域跳过和耗材事件；结果报告区分完整、部分和人工结束。
+DeliveryRun
+WAITING_LOAD → IN_TRANSIT → WAITING_RECIPIENT → DELIVERED → RETURNING
+餐厅支持桌台/回收；酒店支持柜门、一次性码、通知、电梯与超时回收。
+ShowRun
+DRAFT → VALIDATED → REHEARSAL → READY → ARMED → RUNNING → COMPLETED/ABORTED
+只有动作资产、机器人组、场地和预检全部通过才可 ARMED；ABORT 后必须人工复位。
+8. 功能需求清单
+优先级定义：P0 = v1.0 发布阻断；P1 = 目标纳入，必要时可书面豁免；P2 = 后续版本。所有验收均需自动化测试或可复现的 UAT/SAT 证据。
+8.1 租户、身份与权限
+ID
+优先级
+需求
+验收标准
+IAM-001
+P0
+租户隔离
+任一租户用户/API Client 无法读取、搜索、订阅或操作其他租户资源；自动化越权测试通过。
+IAM-002
+P0
+OIDC 登录
+支持企业 OIDC 登录、Token 刷新、注销与会话过期；开发环境可使用内置 IdP。
+IAM-003
+P0
+RBAC
+至少提供 PlatformAdmin、TenantAdmin、SiteManager、Dispatcher、Technician、Viewer、APIClient。
+IAM-004
+P0
+API Client 与 Scope
+可创建/撤销 Client，限制站点与读写 Scope；Secret 只显示一次并可轮换。
+IAM-005
+P1
+MFA 与高风险确认
+管理员/技术员支持 MFA；高风险命令要求二次确认与理由。
+IAM-006
+P0
+权限审计
+角色、成员、凭证、策略变化全部写入 AuditEvent。
+
+8.2 站点、地图与区域
+ID
+优先级
+需求
+验收标准
+SITE-001
+P0
+站点/场馆/楼层
+支持餐厅、酒店、商业物业、舞台/展区，配置时区、语言、运营时段和负责人。
+SITE-002
+P0
+地图版本
+地图不可原地覆盖；机器人、任务和 Show 均引用明确版本/区域。
+SITE-003
+P0
+区域/安全区
+支持清洁区、禁区、限速区、维护区、舞台区和观众缓冲区；变更有版本与审计。
+SITE-004
+P0
+语义点位
+支持 pickup、dropoff、table、room、elevator_lobby、charger、refill、stage_mark、wait。
+SITE-005
+P0
+设施资源
+登记电梯、门禁、柜门/托盘、补水站、充电站和 Show Control 端点及健康状态。
+SITE-006
+P0
+坐标/场地映射
+厂商坐标、楼层/客房/桌台和舞台标记可映射；Adapter 上报 frame/mapVersion。
+SITE-007
+P1
+运营/维护窗口
+按区域、设施、机器人或场馆设置维护/演出占用窗口并阻止冲突任务。
+
+8.3 Fleet、Robot 与能力注册
+ID
+优先级
+需求
+验收标准
+ROB-001
+P0
+Fleet/Robot CRUD
+注册、启停、标签、站点/Fleet、厂商外部 ID 和资产编号。
+ROB-002
+P0
+Model Profile
+型号、固件、接口版本、能力、限制、验证证据和 Supported/Beta/Blocked 状态可管理。
+ROB-003
+P0
+设备身份
+每个 Edge/Adapter/Robot 有唯一受控身份；禁止共享默认凭证。
+ROB-004
+P0
+统一状态
+规范化在线、位置、电量、任务/Show、清洁/柜门/动作模式、错误、维护和版本。
+ROB-005
+P0
+能力协商
+UI/API 只显示 Profile 与 Adapter 已验证动作；不支持的暂停、开柜、Cue 等必须给出原因。
+ROB-006
+P0
+维护/隔离
+进入维护或隔离后停止新任务和 Show；退出前通过健康/预检。
+ROB-007
+P0
+电量与耗材策略
+商用机器人支持最低接单电量；清洁机器人支持水/污水/耗材状态；表演机器人有最低演出电量。
+ROB-008
+P0
+版本基线
+记录固件、Adapter、Edge、动作资产兼容矩阵、配置哈希与最近同步。
+ROB-009
+P1
+批量导入/绑定
+CSV/JSON 批量导入并绑定厂商账号，提供逐行校验和冲突提示。
+
+8.4 Edge 与适配器
+ID
+优先级
+需求
+验收标准
+EDGE-001
+P0
+出站安全连接
+Edge/Venue Controller 仅需向云发起 mTLS/TLS；无需开放客户入站端口。
+EDGE-002
+P0
+离线缓冲与同步
+至少缓存 24 小时关键事件；恢复后按序补传且不重复执行任务、开柜或启动 Show。
+EDGE-003
+P0
+Adapter SDK/Profile
+统一 discover、status、capabilities、execute、pause/cancel、health、sync；支持厂商扩展。
+EDGE-004
+P0
+PUDU Adapter
+真实账号和至少一类清洁/配送型号完成任务、状态、错误和断线合同测试/HIL。
+EDGE-005
+P0
+KEENON Adapter
+真实合作接口和至少一类目标型号完成合同测试/HIL；接口未授权时不得标记 Supported。
+EDGE-006
+P0
+Unitree Adapter
+SDK2/CycloneDDS 接入状态、动作资产、预检、Cue、Start/Abort；仅局域网/本地 Edge。
+EDGE-007
+P0
+Venue Show Controller
+本地保存动作资产、机器人组、时钟、运行日志；云断开时按既定策略继续或安全中止。
+EDGE-008
+P0
+命令幂等/回执
+同一 commandId/cueId 只处理一次；ACK/结果可重放并关联版本。
+EDGE-009
+P0
+健康与版本
+上报端点、限额、固件、Adapter、资产缓存、队列、时钟偏差和最近错误。
+EDGE-010
+P1
+Legacy Zeus Adapter
+保留接口骨架和协议盘点；不作为 v1.0 发布门，除非单独批准资源。
+
+8.5 遥测、实时状态与告警
+ID
+优先级
+需求
+验收标准
+TEL-001
+P0
+统一运营状态
+时间、位姿摘要、电量、模式、任务/Show、错误、连接、柜门/清洁/动作状态按 Profile 上报。
+TEL-002
+P0
+实时站点/场馆图
+显示商用机器人位置/任务和舞台机器人站位/预检/运行状态；标明数据新鲜度。
+TEL-003
+P0
+时间与序列
+状态包含 sourceTimestamp、ingestTimestamp、sequence；Show Controller 额外上报时钟偏差。
+TEL-004
+P0
+事件标准化
+厂商错误、设施错误和 Show 错误映射统一类别并保留原始 code/message。
+TEL-005
+P0
+规则告警
+离线、低电、清洁耗材、任务超时、电梯失败、柜门异常、预检失败、Cue 偏差和 Adapter 异常。
+TEL-006
+P1
+任务/Show 回放
+查看关键位置、设施、命令、动作版本和 Cue 时间线；默认不存原始媒体/关节流。
+TEL-007
+P0
+数据最小化
+默认禁止上传 LiDAR、视频、音频和高频关节数据；启用媒体必须单独授权。
+TEL-008
+P1
+保留/聚合
+按租户设置商用遥测、客房数据、Show 事件和诊断包的保留期限。
+
+8.6 Task 与执行工作流
+ID
+优先级
+需求
+验收标准
+TASK-001
+P0
+场景模板
+内置 cleaning_run、restaurant_delivery、restaurant_return、hotel_room_delivery、show_run。
+TASK-002
+P0
+UI/API 创建
+校验站点、地图/区域、桌台/客房、设施、能力、时间窗、Model Profile 和动作资产。
+TASK-003
+P0
+通用步骤
+navigate、wait、load_confirm、handoff、notify、open_compartment、facility_call、go_charge、custom_action。
+TASK-004
+P0
+周期/预约
+清洁支持周期计划；配送支持预约/截止；Show 支持正式开场时间、彩排和锁定窗口。
+TASK-005
+P0
+幂等与关联
+外部订单/计划/Show ID 与 idempotencyKey 唯一；Webhook 重试不产生重复任务。
+TASK-006
+P0
+状态机
+严格执行 Task/Delivery/Cleaning/Show 状态迁移，非法迁移返回原因并审计。
+TASK-007
+P0
+暂停/恢复/取消/Abort
+依据 Adapter/Profile 显示动作；Show Abort 与业务 Cancel 明确区分。
+TASK-008
+P0
+超时/重试/补偿
+设施失败、收货超时、机器人拒绝和网络断开有可配置策略；避免重复开柜/启动动作。
+TASK-009
+P1
+顺序/有限条件
+支持多步骤、分支、并行通知和有限重试；不支持任意 BPMN/循环。
+
+8.7 调度与分配
+ID
+优先级
+需求
+验收标准
+SCH-001
+P0
+商用硬约束
+按 tenant/site/map/profile/online/state/capability/payload/battery/zone/maintenance/设施过滤。
+SCH-002
+P0
+商用评分选择
+按距离/队列/电量/SLA/区域/回程评分；可按场景配置权重。
+SCH-003
+P0
+租约与并发
+同一机器人不被并发分配互斥任务；设施和柜门也可作为可租约资源。
+SCH-004
+P0
+拒绝与改派
+机器人拒绝、ACK 超时、离线或设施失败时释放租约并按策略改派/人工处理。
+SCH-005
+P0
+充电/耗材保护
+低电、缺水、污水满或表演电量不足时不得接单/Arm。
+SCH-006
+P0
+人工分配
+用户可在合格机器人中选择；系统展示不合格原因和风险。
+SCH-007
+P0
+Show Group Reservation
+表演按型号、动作兼容、电量、站位、场地时间窗整组预留，不使用普通贪心调度。
+SCH-008
+P0
+冲突保护
+Show 已 ARMED/RUNNING 时机器人不得接收商用任务；商用 BUSY 机器人不得加入 Show。
+SCH-009
+P1
+可解释性
+记录候选、过滤、评分、组预留和最终选择，供任务/Show 详情查询。
+
+8.8 运营控制台
+ID
+优先级
+需求
+验收标准
+OPS-001
+P0
+全局总览
+显示各厂商在线数、清洁/配送/Show 运行、告警、成功率和站点健康。
+OPS-002
+P0
+站点/场馆实时图
+显示地图/楼层/桌台/客房/区域/舞台、机器人、任务和新鲜度。
+OPS-003
+P0
+商用任务队列
+按场景/状态/站点/厂商筛选，支持创建、取消、改派和重试。
+OPS-004
+P0
+清洁工作台
+计划、区域、模式、断点、耗材、完成报告和异常。
+OPS-005
+P0
+配送工作台
+装载、桌台/客房、柜门/PIN、设施、通知、取件和超时回收。
+OPS-006
+P0
+Show Console
+资产、节目单、机器人组、彩排、预检、Standby/Arm/Start/Abort、Cue 和报告。
+OPS-007
+P0
+Robot Detail
+连接、位置、电量、Profile、版本、任务/Show、错误、资产缓存和最近事件。
+OPS-008
+P0
+告警/Incident
+确认、指派、备注、关闭；关键安全/Show 告警不能被无权限用户忽略。
+OPS-009
+P0
+维护与隔离
+机器人进入/退出维护、维护原因、预计结束、复测和站点禁用。
+OPS-010
+P0
+审计查询
+按人、对象、厂商、动作、任务/Show、时间查询与导出。
+
+8.9 集成、报表与审计
+ID
+优先级
+需求
+验收标准
+INT-001
+P0
+版本化 REST/OpenAPI
+`/api/v1`；场景 API 与通用 Task/Show API 共享版本规则。
+INT-002
+P0
+Webhook/实时事件
+task/cleaning/delivery/show/robot/alert 事件可订阅；签名、重试、死信和投递日志齐全。
+INT-003
+P0
+PUDU/KEENON 接口契约
+按厂商账号、限额、错误、版本和能力建立自动合同测试与兼容矩阵。
+INT-004
+P0
+Unitree SDK2 契约
+状态、资产、预检、Cue、Start/Abort、时钟和错误映射可回归测试。
+INT-005
+P1
+POS/KDS 连接器
+至少一个餐厅试点完成订单/桌台/状态联调。
+INT-006
+P0
+PMS/酒店连接器
+至少一个酒店试点完成房间/通知/取件码与状态联调；不保存多余客人信息。
+INT-007
+P0
+Elevator/IoT 连接器
+支持呼梯、楼层、门状态、超时和人工降级；全部操作可审计。
+INT-008
+P1
+Show Control 连接器
+支持手动 Cue，至少一种 OSC/MIDI/HTTP 触发方式完成受控联调。
+AUD-001
+P0
+不可抵赖审计
+记录 actor、版本、资源、动作、before/after、结果、correlationId 和现场/远程来源。
+AUD-002
+P0
+端到端追踪
+Order/Plan/Show → Assignment/Reservation → Command/Cue → Adapter ACK → Robot/Facility Event 可关联。
+
+8.10 Legacy 迁移
+ID
+优先级
+需求
+验收标准
+MIG-001
+P1
+领域映射保留
+保留 MaaS Order/Vehicle/Site/Zone/Command 到新模型的映射文档。
+MIG-002
+P1
+Legacy Adapter 骨架
+定义 Zeus Adapter Contract 与协议样例；不进入 v1.0 发布门。
+MIG-003
+P2
+镜像遥测
+资源允许时只读接收 Legacy 状态，与旧 FMS 比对。
+MIG-004
+P2
+数据导入
+站点、车辆、区域和必要历史任务可选择导入；乘客/支付数据不迁入。
+MIG-005
+P2
+命令切流
+仅在单独批准的试点中实施单主租约、影子调度和回滚。
+
+8.11 商业清洁机器人需求
+ID
+优先级
+需求
+验收标准
+CLN-001
+P0
+清洁计划
+按站点/楼层/区域、日期、班次、模式和优先级创建一次性或周期计划。
+CLN-002
+P0
+清洁模式映射
+统一 sweep/scrub/vacuum/mop/spot 等语义，并映射到 PUDU/KEENON 真实能力。
+CLN-003
+P0
+区域与排除区
+支持清洁区、临时禁区、跳过区和已完成区域；变更有版本。
+CLN-004
+P0
+断点续清
+低电、补水、人工暂停或轻微阻塞后可恢复；不能恢复时明确部分完成。
+CLN-005
+P0
+耗材/水箱状态
+接口可得时显示清水、污水、尘盒、耗材和补水站；不可得时标记 Unknown，不伪造。
+CLN-006
+P0
+异常与人工降级
+区域不可达、地面湿滑、传感器/刷盘错误可暂停、跳过、改派或人工完成。
+CLN-007
+P0
+结果报告
+记录计划面积/区域、实际完成、耗时、暂停、异常、回充/补水和人工干预。
+CLN-008
+P1
+效果/质量字段
+支持人工抽检、照片/备注或厂商质量指标；不把路径覆盖直接等同清洁质量。
+8.12 餐厅与酒店配送需求
+ID
+优先级
+需求
+验收标准
+DEL-001
+P0
+业务订单
+餐厅支持取餐口/桌台/回收；酒店支持前台/备品点/客房/回收点。
+DEL-002
+P0
+装载确认
+支持人工确认、托盘/柜门状态或厂商传感器；未确认不得离开。
+DEL-003
+P0
+载荷与容器
+按托盘、格口、柜门、载重和温度/隐私要求匹配 Model Profile。
+DEL-004
+P0
+多点/批次
+餐厅可多桌顺序配送；酒店首版默认单客房，可配置受限批次。
+DEL-005
+P0
+设施联动
+呼梯、选层、门状态、门禁/柜门、超时和重试均作为任务事件。
+DEL-006
+P0
+收货确认
+餐厅支持桌台/员工确认；酒店支持一次性 PIN/链接/前台确认，取件后即失效。
+DEL-007
+P0
+通知
+支持前台/员工/客人通知模板；消息仅包含完成服务所需信息。
+DEL-008
+P0
+超时与回收
+收货超时可等待、通知、返回前台或转人工；不得无限占用机器人。
+DEL-009
+P0
+隐私
+房号、取件码和联系人按最小化、短期保留和权限隔离；日志不记录明文 PIN。
+DEL-010
+P1
+POS/KDS/PMS
+至少各完成一个餐厅或酒店业务系统的标准映射与错误回传。
+8.13 宇树表演机器人需求
+ID
+优先级
+需求
+验收标准
+SHOW-001
+P0
+Show Asset
+动作资产有型号、自由度/配置、版本、哈希、来源、审批、时长和风险等级。
+SHOW-002
+P0
+节目单/Cue
+可按顺序组合动作、姿态、语音/灯效和等待；支持手动或外部 Cue。
+SHOW-003
+P0
+Robot Group
+按相同/兼容 Model Profile、动作版本、电量和站位创建 1–4 台首版机器人组。
+SHOW-004
+P0
+彩排门
+正式 Show 前必须完成同场地/同机器人/同资产彩排或经批准的等价验证。
+SHOW-005
+P0
+Preflight
+检查急停/遥控器、操作员、站位、舞台区、电量、网络、时钟、资产缓存和机器人健康。
+SHOW-006
+P0
+Standby/Arm
+只有 Preflight 全通过且有权限的 Show Director 才能 Arm；Arm 有超时并可撤销。
+SHOW-007
+P0
+本地同步启动
+Venue Controller 在局域网发送 Cue；动作已预加载，记录每台 ACK 与实际开始时间。
+SHOW-008
+P0
+Pause/Abort
+支持厂商/资产允许的 Pause；任何情况下保留本地 Abort 和物理急停，Abort 后需人工复位。
+SHOW-009
+P0
+安全区与观众边界
+舞台区、机器人站位、观众缓冲区和操作员位置可配置并纳入 Preflight。
+SHOW-010
+P0
+运行报告
+记录机器人、资产、Cue、开始偏差、暂停/Abort、错误、操作人和复位。
+SHOW-011
+P1
+音频/灯光联动
+至少一种 OSC/MIDI/HTTP Cue 联调；不直接承担舞台灯光安全控制。
+SHOW-012
+P1
+仿真/离线验证
+动作可在厂商/受支持模拟环境预检；仿真通过不替代实机彩排。
+9. 控制台与体验要求
+9.1 信息架构
+一级导航
+核心内容
+Overview
+租户/站点/场馆健康、三厂商在线、商用任务、Show 与告警摘要
+Sites & Venues
+站点、楼层、地图、区域、桌台/客房、设施、舞台区与 Edge
+Robots
+Fleet、Model Profile、Robot、能力、版本、维护、资产缓存
+Commercial Ops
+Cleaning Plans/Runs、Restaurant Deliveries、Hotel Deliveries、队列和详情
+Shows
+Assets、Programs、Robot Groups、Rehearsals、Preflight、ShowRuns 和报告
+Alerts & Incidents
+告警、责任人、时间线、根因、复盘和现场安全事件
+Integrations
+PUDU/KEENON/Unitree、POS/KDS、PMS、Elevator/IoT、Show Control、凭证和测试
+Reports
+清洁、配送、Show、利用率、干预、SLA、供应商/型号与导出
+Audit & Settings
+用户、角色、策略、资产审批、数据保留、审计
+
+9.2 交互原则
+原则
+要求
+状态先于装饰
+机器人/任务/Show 卡片优先展示状态、新鲜度、错误、Profile/资产版本和当前执行。
+动作可用性
+按钮由角色、当前状态、Adapter/Profile 和本地安全门共同决定；不可用必须显示原因。
+高风险分层
+商用取消、酒店开柜、Show Arm/Start/Abort 使用不同确认级别、理由和审计。
+本地安全可见
+显示急停、遥控器、操作员、舞台区和 Preflight，但不允许云端清除本地安全状态。
+实时但不抖动
+商用位置分层刷新；Show 状态/Cue 高频但聚合显示，避免 UI 高频重绘。
+多租户/场地清晰
+页面始终显示当前租户、站点/场馆和环境；跨场地操作有明显提示。
+中英一致
+厂商状态、错误码、清洁/配送/Show 术语使用统一字典并保留原始值。
+
+9.3 关键页面验收
+页面
+验收重点
+Global Overview
+三厂商与四场景可按站点/状态筛选；数据陈旧、厂商限流和 Edge 离线明确显示。
+Cleaning Workspace
+计划、区域、模式、断点、耗材、异常和完成报告一页可追踪。
+Delivery Detail
+订单、装载、路线摘要、设施、通知、柜门/PIN、收货、超时和操作历史完整。
+Show Console
+Asset/Program/Group/Preflight/Arm/Start/Abort 分层清楚；正式运行时禁止误操作。
+Robot Detail
+连接、Profile、版本、电量、任务/Show、原始厂商错误、动作缓存和最近事件可查询。
+Integration Test
+可测试三个厂商、PMS/POS、电梯/IoT、Webhook 和 Show Cue，不暴露 Secret。
+
+10. API、事件与适配器契约
+10.1 API 设计原则
+所有写 API 支持 `Idempotency-Key`；返回 `requestId/correlationId`。
+资源 API 使用版本化路径，动作 API 使用语义明确的 `:pause/:resume/:cancel`。
+错误使用统一 `code/message/details/retryable` 结构，不把厂商错误直接作为公共 API。
+分页、过滤、排序和时间字段规范统一；所有时间使用 ISO 8601 UTC，站点时区仅用于显示。
+Webhook 使用 HMAC 签名、指数退避、死信和可重放；Consumer 必须幂等。
+Adapter Contract 通过 JSON Schema/Proto 定义，并建立兼容性与合同测试。
+10.2 核心 API 清单
+方法
+路径
+说明
+POST
+/api/v1/tasks
+创建通用商用任务
+POST
+/api/v1/cleaning-plans
+创建/更新清洁计划
+POST
+/api/v1/deliveries
+创建餐厅/酒店配送订单
+GET
+/api/v1/tasks/{taskId}
+任务详情、设施和事件时间线
+POST
+/api/v1/tasks/{taskId}:pause
+暂停商用任务
+POST
+/api/v1/tasks/{taskId}:resume
+恢复商用任务
+POST
+/api/v1/tasks/{taskId}:cancel
+取消/安全结束商用任务
+POST
+/api/v1/show-assets
+登记/上传动作资产元数据与版本
+POST
+/api/v1/show-programs
+创建节目单/Cue Timeline
+POST
+/api/v1/show-runs
+创建彩排或正式 ShowRun
+POST
+/api/v1/show-runs/{id}:preflight
+执行/刷新预检
+POST
+/api/v1/show-runs/{id}:arm
+进入待触发状态
+POST
+/api/v1/show-runs/{id}:start
+向 Venue Controller 发送高层启动 Cue
+POST
+/api/v1/show-runs/{id}:abort
+请求本地终止表演；不等同物理急停
+GET
+/api/v1/sites/{siteId}/live
+站点/场馆实时快照
+GET
+/api/v1/robots/{robotId}
+机器人/Profile/版本/执行详情
+GET
+/api/v1/alerts
+告警查询
+GET
+/api/v1/audit-events
+审计查询
+
+10.3 创建任务示例
+POST /api/v1/deliveries Idempotency-Key: hotel-20260811-0042 {   "siteId": "hotel-tx-01",   "type": "hotel_room_delivery",   "pickupStation": "frontdesk",   "destination": {"floor": 8, "roomRef": "812"},   "requirements": ["secure_compartment", "elevator"],   "recipient": {"notificationRef": "guest-msg-42"},   "deadline": "2026-08-11T20:20:00Z" }  POST /api/v1/show-runs {   "venueId": "venue-ca-01",   "programVersion": "brand-show@1.4",   "robotGroupId": "g1-group-a",   "mode": "REHEARSAL",   "scheduledAt": "2026-08-11T22:00:00Z",   "requiredPreflightPolicy": "unitree-stage-v1" }
+
+10.4 事件 Envelope
+{   "eventId": "evt_01J...",   "eventType": "task.execution.updated",   "eventVersion": "1.0",   "tenantId": "tenant-amygo-demo",   "siteId": "site-tx-01",   "resourceId": "task_01J...",   "occurredAt": "2026-08-11T20:01:32.120Z",   "sequence": 18422,   "correlationId": "corr_01J...",   "data": {"state": "EXECUTING", "robotId": "amr-001"} }
+
+10.5 Adapter 最小契约
+接口
+要求
+discover/register
+发现机器人或绑定外部 ID，返回厂商、型号、固件、Profile、接口版本和能力
+get_status / stream
+上报统一 RobotStatus、场景状态、原始错误、时间戳与序列
+execute_service_mission
+清洁/配送 MissionSpec；返回 accepted/rejected、厂商 missionId 和原因
+pause/resume/cancel
+按 Profile 执行商用任务控制；返回 ACK、最终结果和不确定状态
+prepare_show_asset
+校验/缓存动作资产，返回每台机器人兼容性、哈希和准备结果
+preflight_show
+返回电量、站位、急停/遥控器、时钟、资产、网络和操作员检查结果
+arm/start_cue/abort_show
+仅 Venue Edge 执行；记录 cueId、ACK、实际开始时间、Abort/复位状态
+facility_action
+呼梯、选层、门/柜门、通知等设施动作，支持超时、重试和审计
+health/sync
+端点/限额/版本/队列/时钟；重连时返回当前任务/Show、未决命令和最后序列
+
+11. 非功能需求与安全边界
+11.1 性能与容量
+项目
+v1.0 目标
+注册容量
+10 租户、50 站点/场馆、1,000 注册机器人、200 Model Profile
+在线容量
+300 台商用机器人并发在线；单站点 100 台压测；单场馆 20 台表演机器人注册
+任务吞吐
+10,000 商用任务/日；峰值 20 创建请求/秒；50 个 ShowRun/日
+运营事件
+平均 50 events/s，峰值 500 events/s；Show 状态通道与普通位置通道隔离
+商用调度
+单任务 Assignment P95 ≤3 秒（100 台/站点）
+Show Cue
+Venue Edge 本地 2–4 台启动偏差 P95 ≤100 ms；云到 Edge 延迟不作为关节同步依据
+实时展示
+商用状态 P95 ≤5 秒；Show/Cue 状态 P95 ≤1 秒；关键告警 P95 ≤10 秒
+API
+常用查询 P95 ≤500 ms，写操作 P95 ≤1 s（不含厂商/设施/机器人执行）
+
+11.2 可靠性与恢复
+项目
+要求
+平台可用性
+试点月目标 ≥99.5%，计划维护窗口另计
+Edge 缓冲
+云断连至少 24 小时关键事件；优先保留任务/Show/Cue/设施/错误，位置可降采样
+Show 本地运行
+正式表演所需资产、节目单、机器人组和策略在开场前完整缓存；云断开时不依赖公网持续控制
+商用重连
+30 分钟断网后 60 秒内同步；不重复任务、开柜、通知或设施调用
+命令不确定性
+TIMEOUT 不等于未执行；必须查询厂商/设施/机器人当前状态后补偿
+版本/资产回滚
+云、Edge、Adapter、Model Profile、Show Asset 和配置均有已验证回滚/禁用路径
+云 RPO/RTO
+RPO ≤15 分钟；RTO ≤2 小时；正式 Show 不依赖云 RTO 保证安全结束
+
+11.3 安全要求
+领域
+要求
+身份与通道
+用户 OIDC；设备唯一证书；云-Edge mTLS；TLS 1.2+；禁止共享默认账号
+授权
+最小权限 RBAC + API Scope；跨租户管理员操作明确提示并审计
+凭证
+使用 Secrets Manager；不入库明文 Secret；支持轮换和吊销
+软件供应链
+生成 SBOM、依赖/CVE 扫描、镜像签名、构建可追溯、发布制品不可变
+远程操作
+高风险命令确认、理由、速率限制、超时和完整审计
+审计
+关键审计日志防篡改；至少保留 1 年或按合同配置
+安全测试
+SAST、依赖扫描、容器扫描、API 越权测试、渗透测试/第三方评估计划
+漏洞门
+Critical/High 无未豁免项；豁免需责任人、缓释措施和截止日期
+
+11.4 功能安全边界
+!  不可越界
+RaaS 不是安全控制系统。急停、碰撞检测、速度限制、安全区、制动和机械保护必须在机器人/本地控制器闭环中实现。云端“停止/取消”是任务命令，不得宣称等同安全认证急停。
+
+原则
+要求
+本地优先
+导航、清洁、运动、动作和安全停车由机器人/本地控制器负责；云异常不应导致危险动作。
+物理急停独立
+表演必须有可触达的物理急停/遥控器和现场操作员；云端 Abort 不能替代。
+动作资产审批
+只有签名、兼容、风险评级和实机彩排通过的资产可用于正式 Show。
+场地安全门
+观众边界、舞台区、站位、地面、障碍、照明、网络和撤离路线纳入 Preflight。
+单主控制
+同一机器人同一时刻只有一个商用任务或 Show 主控；厂商 App/遥控器冲突有明确优先级。
+能力协商
+控制台只展示 Adapter/Profile 验证动作，不能假定所有型号支持暂停、回充、开柜或动作 Cue。
+变更管理
+固件、动作、速度/力矩策略、安全区、设施接口变化必须审批、回归和现场复测。
+
+11.5 隐私、数据与合规
+领域
+要求
+数据驻留
+生产数据默认美国区域；跨境厂商支持、日志和远程访问需合同、审批和可审计路径。
+酒店最小化
+房号、联系人、通知引用和一次性码只保存完成服务所需内容；PIN 不入日志，按短期策略删除。
+媒体/关节数据
+默认不收集原始视频/音频、LiDAR 和高频关节流；表演音频仅保存资产引用/哈希。
+厂商远程访问
+限时授权、审批、全审计；禁止永久隧道、共享账号和未知厂商云管理员。
+动作/IP
+Show Asset 的来源、授权、可用场景和导出权限可配置；未经授权不得跨租户复用。
+删除与导出
+支持按合同导出/删除；关键审计和安全事件按法律/合同保留。
+
+11.6 可观测性与可维护性
+能力
+要求
+Tracing
+API → Scheduler → Command → Edge → Adapter → Robot Event 使用 correlationId 贯通。
+Metrics
+在线数、事件延迟、命令 ACK、任务成功、队列、告警、Edge 缓冲、Webhook。
+Logs
+结构化日志、租户/站点/robot/task 维度；敏感信息脱敏。
+Runbook
+离线、命令超时、任务卡住、Adapter 崩溃、证书过期、队列积压等。
+SLO
+至少建立 API、任务调度、Edge 连接、Webhook 四类 SLO 看板。
+
+11.7 场景安全与发布门槛
+场景
+发布前必备
+明确不由 RaaS 承担
+商业清洁
+厂商安全认证/说明、禁区、湿滑/人流 SOP、人工接管和耗材维护
+清洁效果认证、碰撞安全和本地路径控制
+餐厅配送
+装载限重、热液体/托盘 SOP、拥堵区、儿童/宠物风险和人工回收
+餐具/食品安全、机器人避障和机械稳定性
+酒店送物
+电梯/门禁验收、柜门/PIN、隐私、超时回收和夜间 SOP
+电梯安全回路、门禁安全和客人身份认证系统本身
+宇树表演
+受控舞台、物理急停、现场操作员、资产审批、实机彩排、安全边界和责任人签字
+功能安全急停、关节/步态控制、未知动作在线生成和无人值守人群表演
+12. 数据、分析与运营指标
+12.1 数据存储与分类
+存储
+内容与约束
+PostgreSQL/PostGIS
+租户、站点/场馆、地图、Profile、Robot、Task、Cleaning、Delivery、Show、Alert、Audit
+时序分区
+位置、电量、连接、清洁/柜门/设施状态、Show/Cue 时间；按租户与时间分区
+对象存储
+地图、诊断包、清洁附件、导出、Show Asset/节目单/哈希；短期签名 URL
+Redis
+幂等、任务/机器人/设施租约、Show Group 预留、短期状态和 Cue 会话
+事件总线
+商用任务、设施、Show、机器人和告警事件；高频状态与业务事件分主题
+Edge Store
+本地配置、未上传事件、当前任务/Show、资产缓存、未决命令和最近快照
+
+12.2 建议保留期限
+数据
+默认建议
+Task/Cleaning/Delivery/ShowRun
+至少 1 年；按合同延长
+Audit/Safety/Remote Access
+至少 1 年；关键表演安全/远程访问可延长至 3 年
+高频位置/Show 状态样本
+30–90 天；随后聚合或删除
+酒店房号/通知引用/PIN
+任务完成后 7–30 天删除或脱敏；PIN 不持久化明文
+Show Asset/Program
+按授权与版本生命周期保存；下线后保留审计哈希
+设备错误/告警/设施事件
+1 年
+原始视频/音频/关节流
+默认不采集；若启用必须单独审批、用途和期限
+
+12.3 核心报表与指标口径
+指标
+定义
+Commercial Task Success
+SUCCEEDED /（终态任务 - 人工取消 - 本地安全停机）
+Cleaning Completion
+完整/部分完成区域、耗时、回充/补水、跳过区和人工抽检
+Delivery On-time
+在 deadline 前完成取件/送达的比例，按餐厅和酒店分开统计
+Elevator/Facility Success
+设施调用成功、平均等待、超时、人工降级和重复调用保护
+Show Run Success
+COMPLETED /（正式 ShowRun - 开演前人工取消）
+Cue Start Skew
+同一 Cue 下各机器人实际开始时间的最大差值/P50/P95
+Intervention Rate
+人工 pause/reassign/maintenance/Abort/复位的任务或 Show 比例
+Robot Utilization
+BUSY/PERFORMING 时长 / 可运营或可演出时长
+Vendor/Profile Reliability
+按厂商、型号、固件、Adapter 版本统计任务成功、错误和支持工时
+Integration Lead Time
+资料/账号/硬件齐备至通过合同测试和 HIL 的工程师日
+
+12.4 产品埋点与反馈
+控制台应记录功能使用、失败步骤、操作耗时和被拒绝原因，但不得采集敏感字段内容。MVP 每周复盘 Top 10 失败任务、Top 10 告警、人工干预原因和适配器错误，作为下个 Sprint 的输入。
+13. Legacy MaaS 迁移方案
+
+本章用于保护 8 年前 MaaS 资产，不占用首批 PUDU/KEENON/Unitree 接入的关键路径。只有在三厂商适配器、四类场景和 Pilot 门槛不受影响时，才投入 Legacy HIL 与切流。
+图 2｜Legacy MaaS 到 RaaS 的渐进迁移路径（非 v1.0 发布阻断）
+13.1 模块映射
+Legacy 模块
+可继承资产
+优先级
+迁移说明
+com-amygo-appserver
+任务/API、幂等、订单生命周期
+知识复用
+抽象为 Task/Delivery；不复用乘客、短信、支付语义
+com-amygo-fms
+Site/Zone/Robot/Ops/Audit 规则
+知识复用
+迁入通用运营模型；不保留 Thymeleaf UI
+com-amygo-vcm
+会话、遥测、命令闭环和 Zeus 协议
+P1/P2
+实现 Legacy Adapter 前先冻结协议；不影响首批厂商发布
+com-amygo-persis
+历史关系和主键
+映射输入
+新建 Schema；仅需要时维护 ID Mapping
+SmartControl
+人工接管和现场操作经验
+设计参考
+用于 Show/现场控制台的人机流程；不复用低层 UDP 安全方案
+
+13.2 五阶段切换
+阶段
+退出条件
+M0 盘点
+冻结 Legacy 协议、状态、命令、数据库映射与安全边界
+M1 镜像遥测
+新平台只读接收状态；与旧 FMS 页面/日志比对，不发命令
+M2 影子调度
+新 Scheduler 生成建议但不执行；比较旧调度结果与异常
+M3 受控命令
+指定机器人/时间窗由 RaaS 主控；旧 FMS 只读，命令租约保护
+M4 切流
+新任务入口进入 RaaS；旧系统保留历史查询和回滚窗口
+
+13.3 数据迁移范围
+数据
+处理
+车辆/Fleet/站点/围栏
+清洗后导入新模型；保留 legacyId 和 sourceSystem
+车端协议配置
+迁入 Legacy Adapter 配置库，Secret 重建而非复制明文
+历史订单/轨迹
+可选择导入只读归档或保留旧系统查询；不阻断 v1.0
+乘客、短信、支付、评价
+不迁入 RaaS MVP；如法律要求按旧系统保留
+运营账号/权限
+重新建立 OIDC 和最小权限，不直接复制密码哈希
+
+13.4 回滚条件
+出现命令重复、状态严重不一致或安全边界无法确认时，立即停止新平台下行命令。
+RaaS 与 Legacy 对同一机器人主控租约冲突时，以安全停车和人工确认优先。
+回滚只切换任务入口和命令主控，不回滚已经完成的数据迁移；通过 ID Mapping 保持审计连续。
+切流后至少保留 2 周受控回滚窗口，之后再决定关闭旧实时链路。
+14. MVP v1.0 开发计划
+14.1 计划基线
+2026-08-11 → 2027-02-12 27 周日历基线
+S0 + 11 个 Sprint 双周 + 发布周
+13–15 FTE 含厂商/表演工程
+55–70 人月 产品+研发+测试+交付
+2026-12-18 内部综合 Demo
+2027-02-12 v1.0 Pilot 发布
+
+
+图 3｜MVP v1.0 首批厂商与场景基线里程碑
+14.2 团队配置
+角色
+FTE
+职责
+产品负责人 / PO
+1.0
+范围、厂商/客户、场景、验收、变更和商业闭环
+技术负责人 / 架构师
+1.0
+架构、契约、安全、Profile、代码评审和技术风险
+后端工程师
+3.0
+Control Plane、Service Mission、Show、API、Audit、集成
+商用机器人/Edge 工程师
+2.0
+PUDU、KEENON、Edge、设施、模拟器和 HIL
+Unitree/运动工程师
+1.5
+SDK2、Venue Controller、动作资产、Cue、仿真/实机与安全预检
+前端工程师
+2.0
+总览、清洁/配送/酒店工作台、Show Console、地图/时间线
+QA/SDET
+1.5
+合同测试、模拟、HIL、性能、安全、故障注入、UAT/SAT
+DevOps/SRE
+0.5
+环境、CI/CD、监控、证书、资产发布、备份和回滚
+UX/Product Design
+0.5
+信息架构、现场交互、高风险操作和双语术语
+现场/应用工程
+1.0（S5 起）
+地图、设施、厂商协调、舞台、培训、SAT 和支持
+
+▲ 资源敏感性  若平均团队少于 12 FTE，建议把 KEENON 或多机器人 Show 从 v1.0 降为 Beta，并保留 2027-02-12 的核心 Pilot；不能同时压缩厂商 HIL、酒店设施联动、宇树实机彩排和安全验收。
+
+14.3 工作流与责任
+工作流
+Owner
+主要产出
+A 产品/UX
+PO + UX
+场景 PRD、原型、术语、客户/厂商验收、变更控制
+B Common Control Plane
+Tech Lead + Backend
+Tenant/Site/Robot/Profile/Task/Show/Alert/Audit
+C Commercial Service
+Backend + Robotics
+清洁、餐厅、酒店任务、调度、设施与报表
+D Vendor Adapters
+Robotics
+PUDU、KEENON、Unitree Adapter、合同测试、HIL
+E Show Execution
+Unitree + Frontend
+Asset、Group、Program、Venue Controller、Preflight、Cue、Console
+F Quality/Safety
+QA + 全员
+模拟器、故障注入、HIL、性能、安全评审、UAT/SAT
+G Platform Ops
+SRE
+CI/CD、环境、SLO、资产签名、备份、发布和回滚
+H Pilot Delivery
+Field + Product
+餐厅/酒店/清洁/场馆准备、培训、运行手册和验收
+
+14.4 Sprint 计划
+迭代
+日期
+主题
+主要交付
+退出条件
+S0
+08/11–08/21
+范围/厂商门
+冻结型号、场景和 Pilot；取得 PUDU 沙箱；KEENON 接口承诺；Unitree 开发配置；ADR/Contract/采购清单
+G0：资料、账号、硬件和责任人批准
+S1
+08/24–09/04
+平台基础
+OIDC/RBAC、Tenant/Site/Venue、数据库、前端壳、Edge mTLS、观测、Profile Schema
+Demo：登录+站点+Edge 在线
+S2
+09/07–09/18
+Robot/Profile/模拟
+Robot/Fleet/Model Profile、Adapter SDK、三厂商模拟器、状态流、地图/区域/场地
+G1：100 模拟商用机器人 + 4 Show Profile
+S3
+09/21–10/02
+任务/Show 基础
+Task/Delivery/Cleaning/Show Asset/Program/Run 状态机、幂等、事件、队列和详情 UI
+Demo：四类对象可创建并校验
+S4
+10/05–10/16
+调度与命令
+商用硬约束/评分、租约、ACK、设施资源、Show Group Reservation、审计
+G2：纯模拟端到端 + 1000 任务
+S5
+10/19–10/30
+PUDU 餐厅配送
+PUDU Adapter、餐厅订单/桌台/装载/送达、错误/断线、真实 HIL
+G3：PUDU 实机餐厅闭环
+S6
+11/02–11/13
+PUDU 清洁/酒店
+清洁计划/报告、酒店柜门/PIN、Elevator/PMS 骨架、第二类 PUDU HIL
+Demo：清洁 + 酒店设施闭环
+S7
+11/16–11/27
+KEENON 接入
+KEENON Adapter、目标型号 Profile、清洁/餐饮/酒店映射、限额/错误/版本矩阵
+G4：KEENON 真实 HIL 或书面降级决策
+S8
+11/30–12/11
+Unitree 单机 Show
+SDK2 Adapter、Venue Controller、Asset、Preflight、单机彩排、Show Console、Abort/复位
+G5：单机实机彩排通过
+Demo
+12/14–12/18
+内部综合 Demo
+PUDU 商用任务 + KEENON 状态/任务 + Unitree 单机 Show；管理层评审范围/预算
+内部 Demo 签字；冻结 Pilot P0
+缓冲
+12/21–01/01
+节假日/缺陷
+不安排关键厂商现场门；修复、文档、采购、场地和资产准备
+无新增 P0 范围
+S9
+01/04–01/15
+设施与商用硬化
+POS/PMS/Elevator、清洁断点、酒店超时回收、三厂商错误/告警、离线恢复
+商用 UAT/SAT rehearsal
+S10
+01/18–01/29
+多机器人 Show
+2–4 台 Robot Group、Cue 同步、音频/外部触发、场地安全门、正式彩排
+G6：安全评审 + 多机彩排通过
+S11
+02/01–02/05
+RC/跨厂商硬化
+性能、安全、权限、72h、回滚、报告、双语、Runbook、缺陷清零
+G7：RC / Go-No-Go
+Release
+02/08–02/12
+v1.0 Pilot
+真实站点 SAT、生产切流、观察窗、SLO、支持排班和业务签署
+G8：v1.0 Pilot 发布
+
+14.5 关键决策门
+Gate
+日期
+名称
+退出条件
+G0
+2026-08-21
+厂商/范围门
+PUDU 沙箱、KEENON 合作路径、Unitree 配置、首批型号/场景/团队批准
+G1
+2026-09-18
+平台/Profile 门
+Edge、RBAC、状态流、三厂商模拟器、Model Profile 可用
+G2
+2026-10-16
+通用闭环门
+1000 模拟任务；Task/Show/租约/命令/审计通过
+G3
+2026-10-30
+PUDU 门
+至少一台 PUDU 实机完成餐厅配送和断网/重试
+G4
+2026-11-27
+KEENON 门
+真实接口/HIL 通过；否则书面降为 Beta 并调整对外承诺
+G5
+2026-12-18
+内部 Demo 门
+四类场景可演示，Unitree 单机彩排通过，Pilot P0 冻结
+G6
+2027-01-29
+Show 安全门
+2–4 台同步、物理急停、现场操作、场地边界、资产审批和彩排通过
+G7
+2027-02-05
+RC 门
+P0 完成，无 Sev-1/2，性能/安全/恢复/72h 达标
+G8
+2027-02-12
+发布门
+餐厅/酒店/清洁/场馆 SAT、回滚、Runbook、值班和业务签署完成
+
+14.6 关键路径
+试点场景/任务模板冻结 → Adapter Contract → Robot Simulator → Task/Command 状态机。
+Edge mTLS/离线机制 → Legacy/VDA 接入 → HIL → 断网/重连 → SAT。
+统一 ID/坐标/地图版本 → 实时状态 → 调度约束 → 任务回放与审计。
+安全边界与单主控制 → 受控命令 → 切流与回滚。
+厂商商务/API/硬件就绪 → Model Profile → Adapter Contract → 模拟器 → HIL。
+Common Control Plane → 商用 Task/Show 状态机 → 命令/Cue 幂等 → 审计与恢复。
+PUDU 餐厅闭环 → 清洁/酒店 → KEENON 映射 → 跨厂商商用 Pilot。
+Unitree SDK2 → Venue Controller → Asset/Preflight → 单机彩排 → 多机 Cue → 安全签署。
+PMS/POS/Elevator/Show Control → 设施失败策略 → UAT/SAT → 72h → 发布。
+14.7 工作量基线
+工作包
+估算
+基础平台/IAM/Profile/CI
+14–18 人周
+通用 Task/Show/租约/审计
+24–30 人周
+PUDU Adapter + 餐厅/清洁/酒店
+20–28 人周
+KEENON Adapter + 场景映射
+18–26 人周
+Unitree SDK2 + Venue Controller + Show
+28–38 人周
+POS/PMS/Elevator/Show Control
+18–26 人周
+运营控制台
+24–32 人周
+QA/模拟/HIL/性能/安全
+30–40 人周
+DevOps/现场/文档/培训
+22–30 人周
+合计
+约 198–268 人周（工程约 46–62 人月；含产品/UX/管理与交付约 55–70 人月）
+
+15. 测试、发布与运维计划
+15.1 测试策略
+层级
+范围
+单元测试
+状态机、Profile、商用调度、Show Group、幂等、权限、设施补偿、Cue 和映射；关键领域 ≥80%
+合同测试
+OpenAPI/Webhook、PUDU、KEENON、Unitree SDK2、PMS/POS/Elevator、Show Control；版本化样例
+模拟测试
+三厂商型号、位置、电量、耗材、柜门、设施、断网、乱序、重复、Cue 偏差和 Abort
+集成测试
+PostgreSQL/Redis/Event/Edge/Adapters/Venue Controller/Facilities 真实容器或沙箱
+HIL
+PUDU、KEENON、Unitree 各至少一台真实型号；Unitree 需单机和 2–4 台组测试
+性能测试
+100 商用机器人/站点、300 在线、500 events/s、20 tasks/s、20 Show robots registered
+恢复测试
+云/Edge/Adapter/Venue 重启、网络 30 分钟中断、设施超时、证书轮换、资产回滚
+安全测试
+越权、Secret、Webhook 重放、设备冒充、动作资产篡改、Arm/Start/Abort 权限和现场安全清单
+UAT/SAT
+餐厅、酒店、清洁和表演分别由业务/现场/客户按真实脚本签署
+
+15.2 发布准入清单
+门类
+准入标准
+功能
+全部 P0 完成；三厂商至少各一真实型号；四类场景均有端到端验收证据
+厂商授权
+账号、API/SDK、许可证、限额、支持联系人和生产使用权书面确认
+缺陷
+0 个未关闭 Sev-1/Sev-2；Sev-3 有明确版本计划和现场规避
+稳定性
+72h；无重复任务/开柜/Show 启动、无不可恢复状态或关键数据丢失
+表演安全
+物理急停、遥控器、操作员、场地边界、资产审批、正式彩排和复位流程签署
+设施
+PMS/POS/Elevator/IoT 失败、超时、人工降级和回滚均演练
+安全/隐私
+无未豁免 Critical/High；酒店最小化、设备身份、RBAC、审计、资产签名验证
+现场
+地图/区域/桌台/客房/舞台/机器人/网络/充电/补水/设施/SAT 脚本确认
+运营
+SLO、告警、Runbook、值班联系人、厂商升级路径、备件/现场支持发布
+批准
+产品、技术、交付、业务、场地安全与客户负责人共同 Go
+
+15.3 环境与 CI/CD
+环境
+用途
+Dev
+自动创建；模拟器；开发数据；每次合并部署
+Integration
+共享 Edge/Adapter/机器人模拟；合同和集成测试
+Staging/RC
+生产等价配置、脱敏数据、性能/安全/恢复
+Pilot
+真实站点；Feature Flag；受控租户和机器人
+Production
+v1.0 后逐步开放；变更审批和回滚
+
+发布采用不可变镜像、数据库向前兼容迁移、Feature Flag 和分阶段切流。Edge/Adapter 版本与云端合同必须声明兼容范围；不允许强制现场同时升级所有组件。
+15.4 试点运行与支持
+阶段
+动作
+上线前 4 周
+完成厂商授权、机器人清单、地图/点位、设施、动作资产、场地风险评估和培训计划
+上线前 2 周
+完成各场景 SAT rehearsal、清洁/配送 SOP、Unitree 实机彩排和应急演练
+上线日
+受控任务/Show 窗口；产品、机器人、后端、SRE、现场、厂商和安全责任人在线
+上线后 72h
+增强观察；每日两次复盘；冻结高风险变更；Show 仅使用已批准资产
+第 1–2 周
+统计场景成功率、设施失败、Cue 偏差、人工干预、错误和支持工时
+退出试点
+客户 SAT、商用任务、清洁报告、Show 安全与稳定指标达到门槛，形成部署模板
+
+16. 风险、决策门与后续路线图
+16.1 主要风险登记
+ID
+影响
+概率
+风险
+缓释
+R1
+高
+高
+KEENON/PUDU 接口权限或生产授权晚于计划
+G0 书面确认；沙箱/限额/型号权限清单；未授权不宣称 Supported
+R2
+高
+中
+同一型号不同地区/固件能力不一致
+Model Profile + firmware matrix；按实机/账号做合同测试和灰度
+R3
+高
+中
+四类场景导致范围过大
+两条产品线治理；12 月冻结 P0；不足资源时降级 KEENON 或多机 Show
+R4
+高
+中
+酒店电梯/门禁/柜门集成拖期
+早期测试环境；Connector SPI；人工降级；设施 SAT 独立门
+R5
+中
+中
+清洁厂商不提供完整面积/效果指标
+区分“执行可追踪”与“清洁质量”；缺失字段标 Unknown + 人工抽检
+R6
+高
+中
+Unitree 动作/固件/SDK 不兼容或动作不稳定
+开发配置、资产兼容矩阵、离线验证、实机彩排、版本锁定和回滚
+R7
+极高
+中
+表演碰撞、跌倒或观众进入安全区
+受控场地、物理急停、现场操作员、安全边界、Preflight、Abort/疏散 SOP
+R8
+高
+中
+多机 Cue/网络时钟偏差
+动作预加载、本地 Venue Controller、时钟监控、最大组规模 4 台、降级为单机
+R9
+高
+中
+厂商 App/云与 RaaS 同时控制
+主控租约、账号/权限分离、运行窗口、现场操作规则和审计
+R10
+高
+中
+酒店客人数据或远程访问泄露
+数据最小化、短期保留、PIN 不入日志、限时厂商访问和审计
+R11
+中
+高
+真实硬件/场地窗口不足
+采购/借测双路径；固定 HIL 日历；模拟器只做前置，不替代 SAT
+R12
+高
+低
+发布后现场不可恢复
+Runbook、诊断包、回滚、备用机器人、厂商升级和观察窗
+
+16.2 待决策事项
+ID
+决策
+Owner
+截止
+A1
+首批具体型号：PUDU/KEENON 清洁、餐饮、酒店各选择哪些 Profile
+产品/厂商/机器人
+2026-08-21
+A2
+PUDU Open Platform 与 KEENON API 的生产授权、限额和支持 SLA
+业务/法务/技术
+2026-08-21/28
+A3
+Unitree 首发型号与数量：G1 EDU、H1/H1-2 或 Go2；单机/多机目标
+产品/机器人/安全
+2026-08-21
+A4
+首个餐厅、酒店、清洁站点和表演场馆及真实 SOP
+业务/产品/交付
+2026-09-04
+A5
+电梯/门禁/柜门/PMS/POS 接口责任方和测试环境
+客户 IT/设施/集成
+2026-09-18
+A6
+Show Asset 来源、版权、动作审批和舞台安全责任人
+业务/法务/Show Director
+2026-10-16
+A7
+对外发布口径：Supported/Beta/Simulator 的标识和销售承诺
+产品/销售/法务
+2026-11-27
+A8
+Legacy Zeus 是否在 v1.0 期间投入 P1 资源
+技术/产品
+2026-12-18
+A9
+定价按站点、机器人、场景模块或 ShowRun
+业务/财务
+2027-01-15
+
+16.3 后续路线图
+版本
+方向
+v1.1｜2027 Q2
+更多 PUDU/KEENON Model Profile、完整 OTA/配置、维护工单、Legacy Zeus Adapter、更多 PMS/POS/Elevator 连接器
+v1.2｜2027 Q3
+清洁质量抽检、酒店多任务/多楼层优化、Open-RMF 共享设施、多场馆 Show 模板和更大 Robot Group
+v1.5｜2027 H2
+Remote Assist、预测性告警、批量优化、客户自助部署、Show Asset 市场与受控远程导演
+v2.0｜待验证
+机器人服务市场、跨站点供需与结算、合作伙伴 Adapter Marketplace、数据/模型闭环
+
+◆ 路线图原则  首批只扩展经 API、硬件、HIL、现场安全和商业授权共同验证的型号。清洁/配送与表演可共享平台，但产品指标、现场 SOP 和安全门必须分别管理。
+
+附录 A｜角色权限矩阵
+能力
+Platform Admin
+Tenant Admin
+Site Manager
+Dispatcher
+Technician
+Viewer
+平台租户管理
+✓
+—
+—
+—
+—
+只读
+租户用户/角色
+✓
+✓
+—
+—
+—
+只读
+站点/地图/区域
+✓
+✓
+✓
+只读
+维护相关
+只读
+机器人注册/禁用
+✓
+✓
+✓
+—
+维护相关
+只读
+任务创建/取消
+✓
+✓
+✓
+✓
+有限
+只读
+人工分配/改派
+✓
+✓
+✓
+✓
+有限
+只读
+暂停/恢复/回充
+✓
+✓
+✓
+✓
+✓
+—
+维护模式/诊断包
+✓
+✓
+✓
+—
+✓
+只读
+API Client/Webhook
+✓
+✓
+有限
+—
+—
+只读
+审计与导出
+✓
+✓
+站点
+站点
+站点
+只读
+高风险全局开关
+✓
+—
+—
+—
+—
+—
+
+附录 B｜标准错误分类
+类别
+说明
+示例
+CONNECTIVITY
+连接/心跳/超时
+EDGE_OFFLINE、ROBOT_OFFLINE、ENDPOINT_UNREACHABLE
+AUTH
+身份/凭证
+CERT_EXPIRED、AUTH_FAILED、SCOPE_DENIED
+TASK
+任务/参数
+INVALID_STATION、UNSUPPORTED_ACTION、DEADLINE_EXPIRED
+SCHEDULING
+调度
+NO_ELIGIBLE_ROBOT、ASSIGNMENT_CONFLICT、BATTERY_TOO_LOW
+EXECUTION
+执行
+MISSION_REJECTED、ROBOT_BLOCKED、PICKUP_FAILED
+SAFETY
+安全状态
+E_STOP_ACTIVE、SAFETY_ZONE_BLOCKED、LOCAL_SAFETY_STOP
+ADAPTER
+协议/厂商
+PROTOCOL_ERROR、SCHEMA_MISMATCH、VENDOR_ERROR
+PLATFORM
+平台
+INTERNAL_ERROR、DEPENDENCY_UNAVAILABLE、RATE_LIMITED
+
+附录 C｜Definition of Done
+需求有明确验收标准、权限和错误场景；与 PRD/ADR/API 契约一致。
+代码评审通过，关键逻辑有单元测试；API/Adapter 变更有合同测试。
+数据库迁移向前兼容，有回滚或补救方案；不引入跨模块直接表访问。
+日志、指标、Trace、告警和审计满足运行需要；敏感信息已脱敏。
+安全扫描无新增未处理 Critical/High；Secret 不进入代码、日志或制品。
+文档、Runbook、Release Note 或迁移说明已更新。
+在 Integration 环境完成自动化验证；涉及机器人/Edge 的完成模拟或 HIL。
+产品/QA 对验收证据签字；未完成项不以“后续补”默认为完成。
+附录 D｜参考与设计依据
+内部设计依据：
+《中美机器人本土化品牌与价值链建设方案_2026》，AMYGO.AI，2026-08-05。
+本次提供的 `fms2026` 与 `app-android2026` 代码结构盘点。
+公开技术参考：
+PUDU Robotics Open Platform 与官方清洁/配送产品资料
+KEENON Robotics 官方清洁、餐饮与酒店产品资料；正式 API 以合作文件为准
+Unitree G1/H1/Go2 官方产品资料与 Unitree SDK2 / unitree_sdk2_python / ROS 2 开源仓库
+Open-RMF、VDA 5050 与 ROS 2（作为后续通用适配参考，不替代首批厂商接口）
+酒店 PMS、POS/KDS、电梯/IoT 与舞台 Show Control 的接口规范由试点合作方提供
+所有厂商型号、接口权限、许可证、固件与安全要求在采购和发布前再次书面核验
+i  说明
+技术版本、许可证、厂商实现和适用标准在正式采购/发布前应再次核验。本 PRD 定义产品和工程基线，不替代功能安全、法律、隐私、出口管制或认证机构的正式意见。
+
+
+END OF DOCUMENT
+RaaS MVP v1.0 的成功标准不是“页面和接口完成”，而是：PUDU、KEENON 和 Unitree 真实机器人在真实站点/场馆完成可重复、可恢复、可审计且边界清晰的清洁、配送、酒店送物与表演闭环。
+AMYGO.AI  ·  2026-08-11

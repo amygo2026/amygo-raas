@@ -1,0 +1,12 @@
+---
+description: Adapter contract rules
+alwaysApply: true
+---
+
+# Adapter Contract
+
+- All adapters implement `RobotAdapter` (descriptor, capabilities, snapshot, submit, cancel, events).
+- Adapter responsibilities: auth, DTO mapping, error mapping, webhook/poll, rate limit, model/firmware compatibility.
+- Adapter must NOT own tenant authz, business state machine, global scheduling, billing, or SLA.
+- First real vendor adapters come after Simulator vertical loop and Adapter TCK.
+- Support levels: Simulator / Beta / Supported / Blocked.

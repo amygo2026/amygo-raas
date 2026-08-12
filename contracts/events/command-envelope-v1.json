@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amygo.ai/raas/contracts/events/command-envelope-v1.json",
+  "title": "CommandEnvelope",
+  "type": "object",
+  "required": [
+    "commandId",
+    "correlationId",
+    "tenantId",
+    "siteId",
+    "robotId",
+    "commandType",
+    "idempotencyKey",
+    "issuedAt",
+    "expiresAt",
+    "actor",
+    "payload"
+  ],
+  "properties": {
+    "commandId": { "type": "string" },
+    "correlationId": { "type": "string" },
+    "tenantId": { "type": "string" },
+    "siteId": { "type": "string" },
+    "robotId": { "type": "string" },
+    "commandType": { "type": "string" },
+    "idempotencyKey": { "type": "string" },
+    "issuedAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "actor": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "type": "string" },
+        "id": { "type": "string" }
+      }
+    },
+    "payload": { "type": "object" }
+  }
+}

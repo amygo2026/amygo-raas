@@ -1,0 +1,1243 @@
+AMYGO.AI
+RaaS MVP 开发附加文档
+V1.0｜Cursor 开发启动、工程护栏与 Legacy 迁移准备
+适用于擎朗 / 普渡商用服务机器人、宇树表演机器人及 fms2026 / app-android2026 演进
+开发原则
+先跑通可验证的纵向闭环，再扩展厂商与场景；统一业务任务、状态与审计，不统一低层运动控制。
+
+文档版本
+V1.0
+关联文档
+AMYGO RaaS MVP v1.0 PRD 与开发计划｜范围修订 v1.1
+基线日期
+2026 年 8 月 11 日
+状态
+开发启动基线
+首条闭环
+Simulator → Task → Scheduler → Adapter → Event → Console
+适用团队
+产品、架构、后端、前端、Edge/Adapter、QA、安全、交付
+文件属性
+内部资料；未经授权不得对外传播
+内部资料｜未经授权不得对外传播
+
+0. 文档控制与使用方式
+本附加文档用于把已批准的 RaaS MVP 产品范围转化为可执行的研发启动规则。它不替代主 PRD，而是补充代码仓库、Cursor 使用、核心契约、厂商接入、Legacy 资产盘点、测试门槛和首批任务的工程约束。
+项目
+内容
+文档目标
+让研发从第一天以统一边界、统一契约和可验证闭环开工，避免把旧 MaaS 直接改名、把厂商 SDK 泄漏到核心领域，或在真实接口未知时生成伪实现。
+上位文档
+《AMYGO RaaS MVP v1.0 PRD 与开发计划｜首批擎朗 / 普渡 / 宇树范围修订版》
+适用范围
+新 raas-platform 工程；fms2026 / app-android2026 资产盘点与渐进迁移；PUDU、KEENON、Unitree 与 Legacy Zeus Adapter。
+冲突处理
+产品范围以主 PRD 为准；工程边界以本附加文档为准；安全要求取更严格者；重大变更必须形成 ADR 和书面批准。
+版本冻结
+V1.0 在 Sprint 0 结束前可修订；进入 Sprint 1 后，P0 契约变化须通过架构、QA 与产品联合评审。
+
+0.1 版本记录
+版本
+日期
+状态
+说明
+V1.0
+2026-08-11
+开发启动基线
+整理 Cursor 开发护栏、核心 Contract、厂商接入策略、Legacy 盘点、测试门槛和首批 Issue。
+
+0.2 批准与维护责任
+角色
+批准/维护内容
+发布阻断权
+产品负责人
+场景、P0/P1、用户流程、验收口径
+产品范围与客户承诺
+系统架构负责人
+模块边界、Contract、ADR、数据与集成策略
+架构越界、厂商耦合与不可恢复状态
+研发负责人
+仓库、代码规范、PR、构建和交付节奏
+构建失败、关键债务和不可维护实现
+QA 负责人
+TCK、集成/HIL/SAT、故障注入和发布证据
+缺少测试证据或未关闭 Sev-1/2
+安全/隐私负责人
+身份、Secret、租户隔离、远程访问和表演安全边界
+Critical/High 风险或未签署现场安全门
+交付/现场负责人
+真实设备、网络、站点/场馆条件和 Runbook
+设备/场地不满足 SAT 前提
+
+◆ 使用规则
+本文件应进入新仓库 docs/engineering/，并在每次重大架构、Contract、厂商接入或 Legacy 切流决策后更新。Cursor 生成的代码不能替代正式厂商文档、HIL 结果、代码评审或现场安全签字。
+
+目录
+01
+执行摘要与开工结论
+02
+不可妥协的工程原则
+03
+目标架构、仓库与部署单元
+04
+Cursor 开发治理与项目规则
+05
+六个必须先冻结的核心 Contract
+06
+PUDU / KEENON / Unitree / Legacy 接入策略
+07
+fms2026 / app-android2026 继承与迁移准备
+08
+MVP 明确不做的内容
+09
+Adapter TCK、测试与质量门
+10
+数据、安全、可观测性与部署规范
+11
+首四周开发计划与首批 Issue
+12
+Definition of Ready / Done 与 PR 检查清单
+13
+风险、决策门与开工检查表
+A–D
+附录：Cursor Rules、首条指令、目录结构与示例契约
+
+
+1. 执行摘要与开工结论
+现在可以正式开工，但第一周的成功标准不是“接上三家机器人”，而是建立一条不会因厂商差异、旧系统耦合或状态不一致而返工的工程骨架。首批真实接入顺序仍为 PUDU、KEENON、Unitree；Legacy Zeus 作为 P1 渐进迁移路径，不占用三家首批厂商的关键路径。
+立即执行
+本周产出
+禁止事项
+建立新 raas-platform 仓库
+模块化单体 Control Plane、独立 Edge/Adapter、CI 与分支保护
+禁止直接在 fms2026 上批量改名
+冻结领域状态机与 Adapter Contract
+Task/Assignment/Execution/Command/Event、Robot 多维状态、Site/Station 映射
+禁止业务层直接引用厂商 DTO/SDK
+先做 Robot Simulator
+第一条纵向闭环和 Adapter TCK 基线
+禁止在模拟闭环未通过前堆叠真实厂商特例
+自动盘点 Legacy 资产
+模块、接口、实体、VCM 协议、Android API 与迁移矩阵
+禁止 Cursor 未分析即自动重构
+建立安全与 Secret 规则
+Privacy/访问控制、Secret Manager、审计和本地安全边界
+禁止提交 Token、证书、客户数据或低层控制密钥
+
+● 开工顺序
+先做统一契约和模拟闭环，再接 PUDU；KEENON 在正式合作接口、型号和固件矩阵齐全后进入真实开发；Unitree 从场馆本地 Show Agent、单机预置动作和安全预检开始。
+
+
+图 1｜第一条纵向闭环：所有真实 Adapter 的共同发布前提
+1.1 Day-0 十项决策
+编号
+决策
+结论
+D0-1
+代码底座
+新建 raas-platform；旧仓只读盘点并通过 Adapter/迁移脚本接入。
+D0-2
+架构形态
+云端模块化单体 + 异步 Worker；Edge、Venue Controller、Adapter 独立部署。
+D0-3
+第一条链路
+Simulator → Task → Scheduler → Command → Event → Console。
+D0-4
+统一边界
+统一业务任务、状态、审计、错误和能力；不统一低层运动、地图文件和厂商安全控制。
+D0-5
+真实接入顺序
+PUDU P0；KEENON P0 但受正式接口门约束；Unitree 独立 Show 域；Legacy Zeus P1。
+D0-6
+低层控制
+云端不发送速度、转向角、关节角、力矩或连续步态流。
+D0-7
+数据库
+新 Schema；所有业务表 tenant_id；Outbox；事件 append-only；Legacy 保留 source_system/legacy_id。
+D0-8
+测试
+每个 Adapter 必须通过同一 Adapter TCK；没有合同测试与 HIL 不标记 Supported。
+D0-9
+Cursor
+先分析、后计划、再改代码；禁止编造厂商接口；每次输出文件路径、变更、测试和风险。
+D0-10
+发布
+P0、HIL/SAT、72h、无 Sev-1/2、安全签字和 Runbook 缺一不可。
+
+2. 不可妥协的工程原则
+2.1 原则一：旧系统作为资产来源，不作为新平台代码底座
+fms2026 与 app-android2026 的订单生命周期、运营区域、轨迹、权限、长连接、现场控制和异常处理经验值得继承；但其乘客出行语义、旧数据库、Thymeleaf UI、Android 技术栈和 Zeus 私有协议不能成为新 RaaS 的核心依赖。
+正确做法
+错误做法
+新建 Task/Robot/Capability/Adapter 领域，Legacy 通过映射或 Adapter 接入
+将 Car 全局替换为 Robot、Order 全局替换为 Task
+先补 Characterization Test，再提取规则或包装协议
+边改需求边大规模重构旧代码
+新 Schema 与旧数据通过 legacy_id_mapping 对账
+直接在旧表中加入大量机器人字段
+新 UI 通过新 API；旧 UI 仅在过渡期只读或双写
+在 Thymeleaf 页面继续堆多厂商控制逻辑
+
+2.2 原则二：MVP 使用模块化单体，Edge 与 Adapter 独立
+13–15 人团队在 27 周内同时交付商用服务和表演两条执行域，首版不应被微服务治理、分布式事务和多套消息系统拖慢。Control Plane 内保持强模块边界；站点网络、厂商 SDK 与本地生命周期不同，因此 Edge/Adapter 必须单独部署、升级和回滚。
+2.3 原则三：只发送高层业务意图
+允许的云端命令
+不得进入通用云端命令
+DELIVER / CLEAN / RETURN_TO_DOCK / PAUSE / RESUME / CANCEL
+速度、转向角、轮速、电机电流、实时路径点流
+START_SHOW / ABORT_SHOW / PRELOAD_ASSET / PREFLIGHT
+关节角、力矩、连续步态流、在线生成未知动作
+OPEN_COMPARTMENT（在设备/权限支持且通过测试时）
+绕过厂商安全回路、急停、避障或本地互锁
+
+2.4 原则四：统一核心能力，保留厂商扩展
+能力命名空间
+Core Capability ├── navigation ├── delivery ├── cleaning ├── docking ├── compartment ├── elevator └── show  Vendor Extension ├── pudu.* ├── keenon.* ├── unitree.* └── legacy.zeus.*
+
+不支持的能力必须显式返回 CAPABILITY_NOT_SUPPORTED，并记录 Model Profile、固件、Adapter 版本和原因。不得静默忽略，也不得通过 UI 隐藏错误制造“看似成功”。
+2.5 原则五：第一条链路必须纵向闭环
+所有基础模块都应围绕一条真实可执行路径落地，而不是按“先建完所有表、再做所有页面、最后接机器人”的横向方式推进。纵向闭环通过后，再逐步替换 Simulator 为 PUDU、KEENON、Unitree 或 Legacy Adapter。
+2.6 反模式清单
+反模式
+为什么危险
+替代方案
+厂商 SDK 直接进入 Controller/Domain
+升级、测试和多厂商扩展不可控
+Adapter + Anti-Corruption Layer
+Task 只有一个 status 字段
+重试、改派、并发取消和恢复无法表达
+Task + Assignment + ExecutionAttempt + Command + Event
+Robot 只有 ONLINE/OFFLINE
+无法表达低电、定位丢失、维护和安全状态
+连接/运营/任务/电量/定位/安全/维护多维状态
+HTTP 超时即认定命令失败
+真实机器人可能已执行，重试会重复送达或重复开柜
+幂等键、ACK、查询确认与补偿
+云端直接做低层遥控
+网络抖动和权限错误可能造成安全风险
+本地控制器/厂商安全链路；云端仅业务级指令
+Cursor 根据官网猜 API
+生成无法联调的伪代码并污染核心模型
+正式文档、沙箱、样例与 Mock Contract
+
+3. 目标架构、仓库与部署单元
+
+图 2｜云端业务控制、本地执行与厂商适配的责任边界
+3.1 可部署单元
+部署单元
+位置
+职责
+MVP 优先级
+control-plane-api
+云
+同步 API、鉴权、主数据、任务/Show 查询与命令入口
+P0
+control-plane-worker
+云
+Scheduler、Outbox、超时、Webhook、异步事件与报表
+P0
+console-web
+云/CDN
+机器人、任务、清洁、酒店、餐饮、Show、告警和审计 UI
+P0
+site-edge-agent
+站点
+mTLS、Adapter 托管、离线缓存、命令幂等、状态重同步
+P0
+venue-show-controller
+场馆
+动作缓存/校验、Preflight、Cue 时钟、本地 Start/Abort 和运行日志
+P0
+adapter-pudu
+站点
+PUDU 认证、任务、状态、Webhook/轮询和错误映射
+P0
+adapter-keenon
+站点
+KEENON 合作接口、型号能力与版本兼容
+P0/受 G0 门约束
+adapter-unitree
+场馆
+Unitree 本地 SDK、动作资产、状态、预检和 Cue
+P0
+adapter-legacy-zeus
+过渡环境
+VCM/Zeus 遥测镜像、命令包装和渐进切流
+P1
+robot-simulator
+开发/测试
+多厂商 Profile、断网、低电、重复/乱序事件与 Cue 偏差
+P0
+
+3.2 Control Plane 模块边界
+模块
+拥有的数据/职责
+不得依赖
+identity
+OIDC 用户、角色、权限、设备身份引用
+厂商 SDK、业务任务状态
+tenant-site
+Tenant、Site、Floor、Zone、Station、Facility 引用
+具体厂商地图对象
+robot-profile
+Robot、Fleet、Model Profile、Capability、Adapter Instance
+Service/Show 私有流程
+service-mission
+Delivery、Cleaning、Task、Assignment、ExecutionAttempt
+Unitree 低层动作对象
+show-orchestration
+Show、MotionAsset、RobotGroup、Cue、ShowRun
+商用任务分配逻辑
+scheduler-command
+资格筛选、租约、Command、幂等、超时和补偿
+厂商 DTO
+alert-incident
+Alert、Incident、Escalation、Runbook 引用
+直接修改 Robot/Task 表
+audit-integration
+Audit、Webhook、Outbox、External Reference
+直接执行机器人动作
+
+3.3 建议仓库结构
+建议目录
+raas-platform/ ├── control-plane/ │   ├── app-api/ │   ├── app-worker/ │   ├── modules/ │   │   ├── identity/ │   │   ├── tenant-site/ │   │   ├── robot-profile/ │   │   ├── service-mission/ │   │   ├── show-orchestration/ │   │   ├── scheduler-command/ │   │   ├── alert-incident/ │   │   └── audit-integration/ │   └── db-migration/ ├── console-web/ ├── edge/ │   ├── site-edge-agent/ │   └── venue-show-controller/ ├── adapters/ │   ├── adapter-sdk/ │   ├── adapter-tck/ │   ├── simulator/ │   ├── pudu/ │   ├── keenon/ │   ├── unitree/ │   └── legacy-zeus/ ├── contracts/ │   ├── openapi/ │   ├── events/ │   └── vendor-samples/ ├── docs/ │   ├── adr/ │   ├── engineering/ │   ├── legacy/ │   ├── runbooks/ │   └── security/ └── infra/
+
+3.4 依赖方向
+依赖规则
+domain  ←  application  ←  inbound API / UI    ↑             ↑ ports        infrastructure / adapters  禁止：domain → vendor SDK 禁止：service-mission → keenon DTO 禁止：show-orchestration → unitree joint command 允许：adapter → adapter-sdk → core contracts
+
+4. Cursor 开发治理与项目规则
+Cursor 是编码与分析工具，不是架构批准人、厂商接口来源或安全签字人。项目使用时必须控制上下文、变更规模和自动执行范围，确保每个生成结果都能被审查、测试和回滚。
+4.1 使用前安全检查
+检查项
+要求
+不符合时
+账号与隐私设置
+使用公司批准的账号、团队策略和隐私模式；确认代码索引与数据处理符合内部政策
+停止导入仓库，先完成安全审批
+Secrets
+.env、证书、App Secret、机器人 Token、SDK License 进入 Secret Manager；仓库只存模板
+立即轮换已暴露凭证并清理历史
+客户与酒店数据
+不把手机号、房号、PIN、视频、地图和生产日志贴入聊天；样例必须脱敏
+删除上下文并按事件流程处理
+厂商 NDA 资料
+只存批准的私有位置；仓库保存接口抽象、Mock 与授权样例
+不允许上传公共仓库或外部索引
+自动执行
+禁止 Cursor 在无人审查时批量修改生产配置、数据库或安全关键代码
+使用 Plan/Review 模式并限制目录
+
+4.2 项目规则文件
+版本化 Project Rules
+.cursor/rules/ ├── 00-engineering-core.mdc ├── 10-domain-model.mdc ├── 20-adapter-contract.mdc ├── 30-security-safety.mdc ├── 40-testing.mdc ├── 50-legacy-migration.mdc └── 60-database-api.mdc
+
+4.3 标准任务生命周期
+阶段
+Cursor 必须输出
+人工 Gate
+Analyze
+受影响模块、文件、接口、数据库、风险、未知项和测试现状
+确认问题理解与范围
+Plan
+最小变更方案、文件级步骤、迁移/兼容策略、测试计划
+架构或 Tech Lead 批准
+Change
+只修改批准文件；不得顺带重构无关模块
+保持 PR 可审查
+Verify
+build、unit、integration、contract、lint、migration 与必要 HIL 结果
+QA/开发确认证据
+Report
+变更摘要、文件列表、行为差异、未解决问题、回滚办法
+PR Review
+
+4.4 变更规模与 PR 规则
+一个 PR 只解决一个业务或工程目标；大规模重构与新功能不得混在同一 PR。
+数据库迁移、API/事件变更和 Adapter 行为变化必须在 PR 描述中单独列出，并提供兼容/回滚说明。
+新增厂商字段只能存在于对应 Adapter 或 vendor extension；公共 Contract 变化必须有至少两个实现或明确的通用业务理由。
+所有 Cursor 生成代码必须经过人工 Review；安全、权限、命令、状态机、数据库迁移和现场控制至少两人审查。
+PR 合并前必须通过 required checks；禁止以“后续再补测试”豁免 P0 状态机、幂等、权限和 Adapter TCK。
+4.5 核心 Cursor Rules 摘要
+编号
+强制规则
+R1
+修改前先列出影响模块、文件、接口、数据库和测试。
+R2
+Domain 层禁止依赖 PUDU、KEENON、Unitree、Zeus 或厂商 DTO。
+R3
+机器人命令必须包含 commandId、correlationId、tenantId、siteId、robotId、expiresAt、idempotencyKey 和 actor。
+R4
+重复命令、重复 Webhook、乱序事件、网络超时和服务重启必须安全处理。
+R5
+云端不得发送速度、转向、关节角、力矩或连续低层运动控制。
+R6
+高风险人工操作必须写 Audit Log；租户从鉴权上下文获取。
+R7
+数据库变更只能通过版本化 migration；禁止手工改生产库。
+R8
+Legacy 修改前先补 Characterization Test；不得批量改名。
+R9
+新 API/事件同步更新 OpenAPI、schema、样例与 contract test。
+R10
+不得编造厂商 API；资料不足时只实现 Mock、Port 与待确认项。
+
+5. 六个必须先冻结的核心 Contract
+◆ 冻结顺序
+Adapter Contract、Command/Event Envelope、Task 状态机、Robot 状态、Capability 与 Site Mapping 在 Sprint 1 进入真实厂商开发前完成。此后变化必须版本化并通过兼容测试。
+
+5.1 Robot Adapter Contract
+Java 端口示例
+public interface RobotAdapter {     AdapterDescriptor descriptor();     Set<CapabilityDescriptor> capabilities(RobotRef robot);     RobotSnapshot getSnapshot(RobotRef robot);     CommandReceipt submit(CommandEnvelope command);     CommandReceipt cancel(CommandEnvelope command);     Publisher<RobotEvent> events(); }  // Adapter 负责：认证、DTO 转换、错误映射、Webhook/轮询、 // 限流、重试、型号/固件兼容。 // Adapter 不负责：租户权限、业务状态机、全局调度、计费与 SLA。
+
+5.2 Command Envelope
+CommandEnvelope v1
+{   "commandId": "01J...",   "correlationId": "01J...",   "tenantId": "tenant-001",   "siteId": "site-001",   "robotId": "robot-001",   "commandType": "DELIVERY_START",   "idempotencyKey": "task-10086-attempt-1",   "issuedAt": "2026-08-11T20:00:00Z",   "expiresAt": "2026-08-11T20:02:00Z",   "actor": { "type": "SYSTEM", "id": "scheduler" },   "payload": {} }
+
+要求
+行为
+幂等
+同一 idempotencyKey 在有效窗口内只形成一个可执行厂商命令。
+过期
+Edge/Adapter 收到 expiresAt 已过的命令必须拒绝，不能“补执行”。
+ACK
+区分 RECEIVED、ACCEPTED、REJECTED、UNKNOWN；HTTP 200 不等于机器人已开始执行。
+租约
+同一机器人同一时间只有一个主任务/Show 控制权；租约必须可续期、过期和审计。
+撤销
+Cancel 是独立命令；必须处理原任务已完成、厂商不支持取消和取消/完成竞态。
+
+5.3 Event Envelope
+RobotEvent v1
+{   "eventId": "01J...",   "eventType": "TASK_PROGRESS_UPDATED",   "schemaVersion": "1.0",   "tenantId": "tenant-001",   "siteId": "site-001",   "robotId": "robot-001",   "taskId": "task-001",   "sequence": 125,   "occurredAt": "2026-08-11T20:01:10Z",   "receivedAt": "2026-08-11T20:01:12Z",   "source": "PUDU",   "correlationId": "01J...",   "payload": {} }
+
+事件处理必须按 eventId 去重，按 source/robot/sequence 或厂商版本规则识别乱序；业务状态迁移基于允许的状态边，不得用“最后收到的事件覆盖当前状态”。
+5.4 Task、Assignment 与 Execution 状态机
+状态与对象拆分
+Task DRAFT → QUEUED → ASSIGNED → DISPATCHING → RUNNING                                    ├→ SUCCEEDED                                    ├→ FAILED                                    ├→ CANCELED                                    ├→ SUSPENDED                                    └→ NEEDS_INTERVENTION  Task 1 ── N Assignment Assignment 1 ── N ExecutionAttempt ExecutionAttempt 1 ── N Command / Event
+
+不变量
+说明
+单主执行
+同一 Task 同一时刻最多一个 ACTIVE Assignment；同一 Robot 最多一个主控租约。
+终态不可回退
+SUCCEEDED/FAILED/CANCELED 不得直接回到 RUNNING；恢复必须创建新 Attempt 或新 Task。
+业务与设备分离
+Task 状态不是 Robot 状态；机器人离线不自动把任务判为 FAILED。
+并发安全
+取消、完成、超时、人工接管和改派使用版本号/乐观锁和原子状态迁移。
+可追踪
+每个状态变化记录 source event、actor、reason、correlationId 与时间。
+
+5.5 Robot 多维状态
+维度
+示例值
+用途
+connectivityStatus
+ONLINE / DEGRADED / OFFLINE
+连接、心跳与遥测新鲜度
+operationalStatus
+AVAILABLE / BUSY / PAUSED / ERROR / MAINTENANCE
+是否可被业务调度
+missionStatus
+IDLE / ACCEPTING / EXECUTING / RETURNING
+当前任务阶段
+batteryStatus
+NORMAL / LOW / CRITICAL / CHARGING
+电量约束与回充
+localizationStatus
+LOCALIZED / LOST / UNKNOWN
+导航资格与异常处理
+safetyStatus
+NORMAL / PROTECTIVE_STOP / E_STOP
+发布阻断与现场处理
+maintenanceStatus
+OK / DUE / BLOCKED
+维护窗口与禁用
+
+5.6 Site / Station / Vendor Mapping
+MVP 不统一三家厂商的完整地图文件，而统一业务语义点与区域。任务优先使用 Station/Zone，Adapter 再映射为厂商 Place/Target/Map ID；原始坐标仅用于显示、诊断或经过验证的局部场景。
+统一语义 + 厂商映射
+Site ├── Floor ├── Zone │   ├── ServiceArea │   ├── RestrictedArea │   └── StageZone └── Station     ├── PickupPoint     ├── DropoffPoint     ├── Dock     ├── ElevatorLobby     └── ShowStartPose  station-001 → pudu.placeId = "P-102" station-001 → keenon.targetId = "T-28" station-001 → legacy.zeusPointId = 908
+
+6. PUDU / KEENON / Unitree / Legacy 接入策略
+6.1 支持等级
+等级
+定义
+对外表述
+Simulator
+仅 Mock/模拟器与契约测试通过
+不得宣称支持真实型号
+Beta
+真实接口或单台 HIL 已通过，但型号/固件/场景覆盖不足
+限定客户、型号、固件和场景
+Supported
+正式授权、合同测试、HIL、SAT、故障恢复和运维路径全部通过
+可进入正式支持矩阵
+Blocked
+缺少授权、接口、许可证、安全条件或存在严重缺陷
+不得启用生产控制
+
+6.2 PUDU：第一条真实商用 Adapter
+阶段
+能力
+验收
+P0-A
+认证、设备绑定、状态、创建/取消配送任务、任务回调、回充、基础错误映射
+餐厅配送纵向闭环；重复命令/回调、超时、断网恢复通过
+P0-B
+清洁任务、区域/模式、断点续作、清洁结果
+低电/缺水场景、补给后恢复与报告
+P0-C
+酒店送物、舱门/PIN、超时回收、设施连接器
+酒店脚本 SAT；隐私与重复开柜保护
+P1
+更多型号、批量运维、厂商高级能力
+按 Model Profile 单独认证
+
+◆ 接入门
+Sprint 0 必须选定正式接入方式、账号权限、区域、目标型号、固件、限额、Webhook/轮询语义和技术支持联系人。不同接口路径不得在同一个首版 Adapter 中无边界混用。
+
+6.3 KEENON：正式合作接口到位后进入真实开发
+前置资料
+最低要求
+接口与授权
+正式 API/SDK、生产使用权、账号/凭证、沙箱或测试环境
+设备范围
+明确型号、区域版本、固件和可控制能力
+运行语义
+任务状态、错误码、回调/轮询、超时、取消、重试和限流
+设施能力
+电梯、门禁、柜门或厂商 Fleet Manager 的责任边界
+支持机制
+厂商技术负责人、升级路径、故障样例和兼容性通知
+
+在资料未齐全时只实现 adapter-keenon 的 Port、Model Profile、Simulator、Mock Contract 和待确认清单；禁止 Cursor 根据产品页面或其他厂商接口推测 KEENON 请求字段。
+6.4 Unitree：独立 Show 执行域与本地控制器
+表演链路
+RaaS Control Plane         ↓  Show / Asset / Cue（高层意图） Venue Show Controller         ↓  本地预检、时钟、组预留、Start / Abort adapter-unitree / show-agent         ↓  厂商本地 SDK / LAN Unitree Robot
+
+首版能力
+安全/工程约束
+单机连接、状态与资产列表
+动作资产必须有哈希、版本、适用型号/固件、风险等级和来源授权
+Preflight / Standby / Arm / Start / Abort
+物理急停和现场操作员独立存在；云端 Abort 不能替代功能安全急停
+本地日志与 ShowRun 事件
+断网不得重复 Start；恢复后只同步状态，不补执行过期 Cue
+2–4 台 RobotGroup（单机稳定后）
+动作预加载，本地时钟同步；指标只表示命令/Cue 接受差，不宣称关节级同步
+
+6.5 Legacy Zeus：P1 渐进迁移路径
+阶段
+内容
+退出条件
+L0 盘点
+VCM 消息 ID、编解码、登录、心跳、ACK、重连、WebSocket、低层控制清单
+协议字典与风险分类完成
+L1 只读镜像
+车辆登录、位置、状态与到达事件映射为 Robot Event
+无生产控制；事件可对账
+L2 影子任务
+新 Scheduler 生成但不下发，比较旧系统分配/状态
+差异报告和回滚验证
+L3 受控命令
+仅业务级任务/启停包装；低层速度/方向控制隔离
+HIL、权限、租约、幂等通过
+L4 渐进切流
+按站点/车辆白名单切换；旧系统保留回滚窗口
+SAT、监控、Runbook 与业务签字
+
+6.6 Adapter 验收矩阵
+能力
+PUDU
+KEENON
+Unitree
+Legacy Zeus
+设备身份/连接
+P0
+P0
+P0
+P1
+状态/遥测
+P0
+P0
+P0
+P1
+配送任务
+P0
+P0
+N/A
+P1
+清洁任务
+P0
+P0
+N/A
+N/A
+酒店送物
+P0
+P0
+N/A
+N/A
+Show/Cue
+N/A
+N/A
+P0
+N/A
+断网/重连
+P0
+P0
+P0
+P1
+Adapter TCK
+必须
+必须
+必须
+必须
+真实 HIL/SAT
+Supported 前
+Supported 前
+Supported 前
+生产切流前
+
+7. fms2026 / app-android2026 继承与迁移准备
+第一阶段对旧仓库只分析、不改业务代码。目标是建立可审计的资产清单和迁移矩阵，识别哪些逻辑值得提取、哪些协议需要包装、哪些代码必须重写、哪些功能应淘汰。
+7.1 自动生成的 Legacy 报告
+首轮只读盘点产物
+docs/legacy/ ├── modules.md ├── spring-endpoints.md ├── database-entities.md ├── vcm-protocol.md ├── websocket-events.md ├── android-api-calls.md ├── dependency-graph.md ├── security-findings.md ├── behavior-baseline.md └── migration-matrix.md
+
+7.2 处置标签
+标签
+定义
+例子
+KEEP
+原样保留并继续独立运行
+官网 Portal 在 MVP 外继续托管
+EXTRACT
+提取规则、算法或经验到新实现
+运营区域判断、订单状态规则、轨迹回放逻辑
+WRAP
+通过 Adapter/Anti-Corruption Layer 包装
+VCM/Zeus 协议、旧 REST 兼容接口
+REWRITE
+按新领域、技术和安全要求重写
+Task API、Robot Registry、Ops Console、IAM
+RETIRE
+淘汰，不进入新平台
+乘客支付、Thymeleaf 控车页、通用云端方向盘/加减速
+
+7.3 fms2026 模块级迁移矩阵
+模块
+可继承资产
+处置
+目标模块/备注
+com-amygo-appserver
+JWT/登录经验、订单生命周期、运营范围、站点选择、反馈
+EXTRACT + REWRITE
+identity、service-mission、site availability；支付与乘客语义不进 v1.0
+com-amygo-fms
+车辆/状态、区域/围栏、轨迹、RBAC、日志、统计、运营流程
+EXTRACT + REWRITE
+robot-profile、tenant-site、console-web、audit；旧 UI 不复用
+com-amygo-vcm
+长连接、登录、心跳、消息路由、状态推送、联调模拟器
+WRAP + EXTRACT
+adapter-legacy-zeus；低层速度/方向命令隔离
+com-amygo-persis
+历史实体、关系、ID 与状态数据
+EXTRACT + REWRITE
+新 PostgreSQL/PostGIS Schema；建立字段映射和对账
+com-amygo-common
+少量无业务耦合工具和错误处理
+逐项 KEEP/EXTRACT
+禁止整体复制；清除旧 Spring/配置/业务依赖
+com-website-cms
+企业内容管理
+KEEP 或 RETIRE
+与 RaaS 核心解耦；不进入 v1.0
+com-website-portal
+品牌门户
+KEEP
+独立部署；仅更新产品链接和 API 门户入口
+
+7.4 app-android2026 模块级迁移矩阵
+工程/模块
+可继承资产
+处置
+目标/时机
+Amygo app
+叫车到完成的用户旅程、地图交互、订单状态 UI
+EXTRACT + RETIRE
+作为 Requester Portal 需求输入；首个 Sprint 不改 Android
+NetwordLibrary
+API 清单、错误处理和重试经验
+EXTRACT
+生成 android-api-calls.md；新 OpenAPI 重新生成客户端
+AmygoCore
+登录用户、订单和路线编排经验
+EXTRACT + REWRITE
+迁为 Web/PWA 或新 Field App 的应用层
+AMGObject
+User/Order/Car DTO 与状态枚举
+EXTRACT
+仅用于字段/状态映射；不得直接复制为新领域模型
+PubLibrary / weight
+少量 UI 控件和工具
+逐项评估
+只有无耦合、可维护且有现实需求时复用
+DBLibrary
+离线缓存经验
+EXTRACT + REWRITE
+按新任务、事件和权限模型重新设计
+AmygoPad
+现场订单/车辆辅助操作
+EXTRACT
+后续 Field/Operator App；v1.0 以 Web 控制台为主
+SmartControl
+近场接管、方向盘/油门 UI 与 UDP 协议
+隔离 + RETIRE 通用化
+不接入通用 Command API；必要时作为独立安全评审工具
+
+7.5 必须先补的 Characterization Test
+区域
+基线行为
+appserver
+JWT/刷新、运营范围、订单状态转换、重复下单/取消、错误码与权限
+fms
+车辆状态计算、电子围栏、轨迹查询、RBAC 资源树、系统变量和审计
+vcm
+每个消息 ID 的编解码、登录、心跳、ACK、超时、重连、错误码和 WebSocket 转换
+Android
+Retrofit API、DTO 序列化、订单状态 UI、本地数据库迁移和 SmartControl 包格式
+
+7.6 旧接口到新领域的示例映射
+Legacy 能力
+新 RaaS 能力
+处理
+infoInitial / 是否可叫车
+ServiceAvailability + EligibleResourceQuery
+EXTRACT 规则；改为站点、时段、能力与资源资格
+创建订单
+CreateTask
+REWRITE；引入幂等、模板、需求与 SLA
+取消订单
+CancelTask / CancelCommand
+REWRITE；处理竞态、补偿和厂商不支持取消
+改目的地
+ReviseTask / Replan
+按场景与 Adapter 能力显式支持
+靠边停车/继续
+Pause / Resume
+只作为高层命令；不下发低层驾驶控制
+开门上车
+Compartment/Facility Command
+需设备能力、权限、一次性码和重复保护
+车辆位置
+RobotSnapshot / Pose Event
+WRAP/映射；坐标系与新鲜度显式记录
+评价/反馈
+ServiceFeedback / IncidentFeedback
+P1；与 Incident/Support 解耦
+
+7.7 数据迁移最小要求
+建立旧表、字段、枚举、坐标系、时间区、单位和外键关系的数据字典。
+Car → Robot、Order → Task、Fence → Zone、Track → Telemetry/Event、User/Admin/Role → Identity/RBAC 分别建立字段级映射。
+所有迁移数据保存 source_system、legacy_id、migration_batch 和校验哈希；Secret、Token 和证书不得迁移明文。
+迁移脚本必须可重跑、可对账、可恢复；切流前定义冻结窗口、双写/镜像范围和回滚步骤。
+历史数据未证明业务价值时不全量搬迁：优先迁主数据、在途对象、必要审计和近期限运营数据。
+8. MVP 明确不做的内容
+不进入 v1.0
+原因 / 后续处理
+全面重写三个 Android App
+先稳定新 API 和 Web 控制台，再决定 PWA、Field App 或新 Android。
+迁移官网 CMS/Portal
+与机器人任务闭环弱耦合，独立维护。
+乘客支付、完整 Billing 和发票
+不影响首批商用服务/表演试点；后续按商业模式建设。
+AI 调度、强化学习或复杂优化
+v1.0 使用确定性规则，先获得真实运营数据。
+通用地图格式转换与跨厂商路径规划
+导航由厂商机器人/Fleet Manager 负责；平台只统一语义点。
+公网低层遥控和 Unitree 关节级同步
+违反本地安全和网络可靠性边界。
+把 Open-RMF 作为核心数据模型
+保留插件兼容，待共享通道/设施协调确有需求再引入。
+十几个微服务、复杂 Kubernetes 和多套消息系统
+首版以模块化单体 + Outbox + 轻量事件总线降低复杂度。
+未获授权的厂商型号或功能
+只有正式授权、兼容矩阵、HIL/SAT 通过才标记 Supported。
+
+● 调度 v0
+站点匹配 → 能力匹配 → 在线/安全/定位资格 → 电量阈值 → 未占用 → 优先级 → 最近可用。任何复杂成本函数都必须以真实数据和可解释性为前提。
+
+9. Adapter TCK、测试与质量门
+9.1 Adapter TCK
+测试包
+验证内容
+connectivity-test
+身份、握手、心跳、断开、重连与状态新鲜度
+capability-test
+Model Profile、能力协商、不支持能力显式拒绝
+dispatch-test
+命令提交、ACK、进度、完成、失败与取消
+duplicate-command-test
+相同 idempotencyKey 不重复执行
+timeout-unknown-test
+HTTP/网络超时但机器人可能已接收时不盲目重试
+duplicate-event-test
+重复 Webhook/Event 不重复迁移状态
+out-of-order-event-test
+完成后收到旧 RUNNING 不回退状态
+reconnect-resync-test
+Edge/Adapter/Robot 重启后重建快照和未决命令
+unsupported-capability-test
+返回标准错误并保持任务可恢复
+error-mapping-test
+厂商错误码映射为标准类别、原始码和可操作建议
+
+9.2 必测竞态与故障场景
+场景
+期望行为
+命令已被厂商接受，但 HTTP 响应超时
+标记 UNKNOWN，查询/等待事件确认；不得立即重复下发。
+Webhook 重复三次
+同 eventId 或语义键只处理一次。
+先收到 COMPLETED，后收到 RUNNING
+保持终态，记录乱序指标。
+Edge 断网 30 分钟后恢复
+本地不重复执行；60 秒内完成状态与未决事件重同步。
+机器人执行中重启
+状态进入 NEEDS_INTERVENTION 或按厂商可确认结果恢复，不能默认成功。
+取消与完成同时发生
+原子状态迁移；保留两条证据和最终裁决原因。
+同一机器人被两个 Scheduler 选择
+租约/唯一约束只允许一个 Assignment 成功。
+Show 已 Start，但云端未收到 ACK
+本地继续按安全规则执行；云端查询状态，不重复 Start。
+
+9.3 测试层级与门槛
+层级
+范围
+发布证据
+单元测试
+状态机、资格筛选、租约、幂等、权限、事件去重、映射；关键领域 ≥80%
+CI 报告
+Contract Test
+OpenAPI、Event Schema、Adapter、Facility 与 Vendor Sample
+版本化样例与兼容报告
+集成测试
+PostgreSQL、Redis、Outbox/Event、Edge、Simulator、Webhook
+可重复容器/环境
+HIL
+PUDU、KEENON、Unitree 各至少一真实型号
+视频/日志/测试记录和型号固件矩阵
+恢复测试
+云/Edge/Adapter 重启、断网、证书轮换、资产回滚
+故障注入报告
+性能测试
+100 Robot/站点、300 在线、500 events/s、20 tasks/s
+P95/P99 与资源报告
+安全测试
+越权、设备冒充、Webhook 重放、Secret、资产篡改与高风险权限
+无未豁免 Critical/High
+UAT/SAT
+餐厅、酒店、清洁、表演分别按真实脚本
+客户/现场/安全签字
+稳定性
+RC 环境连续 72h
+无 Sev-1/2、无重复执行或不可恢复状态
+
+9.4 CI Required Checks
+合并前必过
+backend:   - compile / format / static analysis   - unit tests   - architecture boundary tests   - migration validation   - API/event schema compatibility   - integration tests with containers  frontend:   - typecheck / lint / unit tests   - component tests for state/error/permission views   - build and bundle checks  adapters:   - adapter-tck   - vendor sample replay   - simulator fault injection   - signed artifact / SBOM / secret scan
+
+10. 数据、安全、可观测性与部署规范
+10.1 数据与数据库规则
+规则
+要求
+租户隔离
+所有业务表包含 tenant_id；租户从鉴权上下文取得，禁止信任请求体 tenantId。
+主键与版本
+新对象使用 UUID/ULID；可并发更新对象包含 version/乐观锁。
+时间
+数据库统一 UTC；显示层按站点时区转换。
+迁移
+Flyway/Liquibase 等版本化 migration；向后兼容至少覆盖滚动发布窗口。
+Outbox
+事务内写业务状态与 Outbox，避免“数据库成功、事件丢失”。
+事件
+RobotEvent/Audit append-only；投影可重建；原始厂商 payload 按最小化原则保存。
+Telemetry
+高频状态与业务事务表分离、分区和保留；默认不采集原始视频/LiDAR/高频关节流。
+Legacy
+保存 source_system、legacy_id、migration_batch；敏感 Secret 重新签发而非复制。
+
+10.2 核心表最小集
+MVP Schema
+tenant / site / floor / zone / station robot / robot_model / fleet / capability / robot_capability adapter_instance / model_profile service_task / task_requirement / assignment / execution_attempt command / robot_event / outbox_event alert / incident / audit_log show / motion_asset / robot_group / show_cue / show_run legacy_id_mapping
+
+10.3 安全与现场控制
+领域
+最低要求
+身份
+OIDC 人员身份；Edge/设备独立证书；唯一 Robot/Adapter 身份；短期凭证。
+权限
+按 Tenant/Site/Role/Action 授权；Pause/Cancel/Open/Arm/Start/Abort 分级。
+Secret
+Secrets Manager、轮换、最小权限；日志和错误响应不得输出 Token/PIN。
+远程访问
+限时、审批、全审计；禁止永久隧道、共享账号和未知厂商管理员。
+表演安全
+物理急停、现场操作员、Stage Zone、Preflight、动作审批和实机彩排。
+供应链
+依赖锁定、SBOM、漏洞扫描、签名构建和可回滚制品。
+
+10.4 可观测性与 SLO
+能力
+关键字段/指标
+Tracing
+API → Scheduler → Command → Edge → Adapter → RobotEvent 使用 correlationId 贯通。
+Metrics
+在线数、状态新鲜度、命令 ACK、UNKNOWN、任务成功、队列、租约冲突、Edge 缓冲、Webhook、Cue 偏差。
+Logs
+结构化；tenant/site/robot/task/show/command/event 维度；敏感信息脱敏。
+Dashboards
+API、Scheduler、Edge、每个 Adapter、任务场景、Show、设施与安全事件。
+Runbook
+离线、命令超时、状态卡住、Adapter 崩溃、证书过期、队列积压、重复事件、Show 中止。
+
+10.5 环境与发布
+环境
+用途
+数据/设备
+Dev
+每次合并自动部署；开发者纵向闭环
+模拟器与合成数据
+Integration
+共享 Edge/Adapter、合同与集成测试
+模拟设备 + 厂商沙箱
+HIL Lab
+真实机器人、充电/补水、场馆网络与设施桩
+受控测试账号和脱敏站点
+Staging/RC
+生产等价配置、性能、安全、恢复与 72h
+脱敏数据；真实或等价设备
+Pilot
+客户 SAT 和观察窗口
+正式授权账号、Runbook 与支持排班
+
+11. 首四周开发计划与首批 Issue
+11.1 四周启动计划
+周期
+目标
+主要工作
+退出条件
+Day 0–2 08/11–08/12
+工程启动
+新仓、权限、CI、Cursor Rules、Secret/分支保护、ADR 模板、Legacy 只读访问
+主分支受保护；空项目可构建部署
+Week 1 08/13–08/21
+契约与模拟骨架
+Legacy 自动盘点；Domain/状态机；Adapter/Command/Event Contract；数据库 v1；Simulator
+G0 评审；契约与第一条模拟命令通过
+Week 2 08/24–08/28
+完整纵向闭环
+Task API、Scheduler v0、租约、Outbox、Event 投影、Console 状态页、Audit
+模拟任务完成/取消/失败/重启恢复
+Week 3 08/31–09/04
+PUDU 接入起步
+正式接口/样例、认证、设备绑定、状态、配送任务；Adapter TCK；KEENON Mock
+PUDU 沙箱或测试机完成首个配送任务
+Week 4 09/07–09/11
+真实链路硬化
+PUDU 超时/断网/回调；Unitree Show Agent 原型；监控、Runbook、Demo
+内部 Demo；无重复执行；故障注入证据齐全
+
+11.2 首批 Issue
+Issue
+内容
+优先级
+建议 Owner
+RAAS-001
+建立新仓库结构、CI、分支保护与 CODEOWNERS
+P0
+研发/DevOps
+RAAS-002
+配置 Cursor Rules、Secret、隐私与安全使用规则
+P0
+架构/安全
+RAAS-003
+生成 Legacy FMS/App 自动化资产盘点与迁移矩阵
+P0
+Legacy 小组
+RAAS-004
+冻结 Domain Model、Task/Show 状态机与不变量
+P0
+架构/后端
+RAAS-005
+冻结 Adapter、Command、Event Contract 与错误模型
+P0
+架构/Adapter
+RAAS-006
+建立 PostgreSQL Schema、migration、Outbox 与审计基线
+P0
+后端/DB
+RAAS-007
+实现 Robot Simulator 与故障注入
+P0
+QA/Adapter
+RAAS-008
+实现 Create Task 纵向闭环
+P0
+后端/前端
+RAAS-009
+实现 Scheduler v0 与机器人租约
+P0
+后端
+RAAS-010
+实现实时机器人/任务控制台
+P0
+前端/后端
+RAAS-011
+建立 Adapter TCK 与 CI Gate
+P0
+QA/Adapter
+RAAS-012
+接入 PUDU 沙箱/测试机器人
+P0
+PUDU 小组
+RAAS-013
+建立 KEENON 正式资料、型号与固件矩阵
+P0
+业务/KEENON 小组
+RAAS-014
+建立 Unitree Venue Show Controller / Show Agent 原型
+P0
+Unitree 小组
+RAAS-015
+建立日志、指标、Tracing、告警与首批 Runbook
+P0
+DevOps/后端
+
+11.3 第一个 Sprint 验收
+验收项
+通过标准
+仓库与 CI
+从干净环境一键构建；required checks、Secret scan、migration validation 生效。
+领域与契约
+Task/Assignment/Execution/Command/Event、Robot 状态、Capability、Site Mapping 有版本化定义与测试。
+模拟器
+至少三个 Model Profile；可模拟成功、失败、低电、断网、重复/乱序事件。
+纵向闭环
+UI/API 创建任务，Scheduler 分配，Simulator 执行，事件回传，Console 更新，Audit 可查。
+恢复
+Control Plane 或 Edge 重启后不重复执行；未决状态可查询和恢复。
+Legacy 报告
+九类 docs/legacy 输出包含具体文件路径、类、接口和处置标签。
+厂商准备
+PUDU 接入方式和账号确认；KEENON 缺口清单；Unitree 目标型号/SDK/动作资产路径确认。
+
+12. Definition of Ready / Done 与 PR 检查清单
+12.1 Definition of Ready
+Ready 条件
+说明
+业务目标与场景明确
+谁在什么站点触发什么任务/Show，成功/失败如何判定。
+范围和优先级明确
+P0/P1、明确不做、依赖和假设写入 Issue。
+Contract 已知
+涉及 API、Event、Adapter、数据库和权限的契约有版本或明确变更方案。
+外部依赖可用
+厂商文档、样例、沙箱/设备、账号、固件和支持人到位；否则任务只做 Mock。
+验收脚本可执行
+正常、失败、重试、取消、断网、权限和恢复场景有测试步骤。
+安全边界明确
+是否涉及高风险命令、酒店隐私、远程访问或表演安全。
+
+12.2 Definition of Done
+Done 条件
+说明
+代码与边界
+实现符合模块依赖和 Adapter 隔离；无无关重构和隐藏厂商耦合。
+测试
+单元、合同、集成、TCK/模拟以及必要 HIL 全部通过；失败场景有证据。
+文档
+OpenAPI/Event Schema/ADR/Runbook/兼容矩阵/迁移说明同步更新。
+安全
+权限、审计、Secret、重放、租户隔离和输入校验通过；无未处理高风险。
+可观测性
+关键日志、指标、Trace、告警和 Dashboard 可定位问题。
+部署与回滚
+制品可重复构建，migration 兼容，配置和回滚步骤验证。
+验收
+产品/QA/现场按 Issue 标准确认；不以“代码已写完”替代真实结果。
+
+12.3 PR Review 检查清单
+是否把厂商 DTO、错误码或 SDK 类型泄漏到 Domain/API？
+是否处理重复请求、重复事件、乱序、超时未知、并发取消/完成和服务重启？
+是否所有查询和写入都强制 Tenant/Site 隔离？
+是否新增高风险命令、权限、远程访问或表演动作？是否有 Audit 和安全评审？
+是否修改 API、Event、Schema 或 Migration？是否有兼容性与回滚说明？
+是否有可观察的日志、指标、Trace 和告警，而不是只捕获异常后返回 500？
+是否所有测试可在 CI 或明确的 HIL 环境重复执行？
+Cursor 是否扩大了原任务范围、自动重构无关代码或生成未经证实的接口？
+13. 风险、决策门与开工检查表
+13.1 风险登记
+风险
+早期信号
+缓释
+Owner
+厂商接口/授权延期
+只有市场资料，无正式 API/SDK/沙箱
+G0 降级为 Simulator/Beta；不污染核心 Contract
+业务/厂商小组
+旧系统直接重构失控
+批量改名、跨模块 PR、测试缺失
+只读盘点 + Characterization Test + 新仓纵向闭环
+架构/Legacy
+状态与重复执行
+HTTP 超时后盲重试、Webhook 覆盖状态
+幂等、UNKNOWN、事件去重、租约和 TCK
+后端/QA
+多租户越权
+tenantId 来自请求体、缺少查询过滤
+鉴权上下文、数据库约束、权限测试
+安全/后端
+Unitree 表演安全
+云端低层控制、无物理急停/现场操作员
+本地控制器、资产审批、Preflight、场地安全门
+Show/安全
+测试设备不足
+开发只依赖 Mock，HIL 窗口反复延后
+Sprint 0 锁设备/场地；设备共享日历与远程 Lab
+交付/采购
+Cursor 生成伪实现
+接口字段无来源、TODO 被当成功能
+规则禁止编造；Mock 明确标记；厂商样例回放
+Tech Lead
+
+13.2 决策门
+Gate
+时间
+退出条件
+A0 开工门
+Day 0
+仓库/权限/CI/Cursor Rules/Secret/责任人就绪。
+A1 Contract 门
+Week 1
+六个核心 Contract、状态机、错误模型、Schema v1 和 Simulator 基线批准。
+A2 纵向闭环门
+Week 2
+1000 次模拟任务；重复/乱序/重启/取消通过；Audit/Trace 可查。
+A3 PUDU 门
+Week 4 或主计划 G3
+至少一台实机/正式沙箱完成配送与断网/重试；TCK 通过。
+A4 KEENON 门
+主计划 G4
+正式接口/HIL 通过；否则书面降为 Beta。
+A5 Unitree 安全门
+多机彩排前
+物理急停、现场操作、资产审批、Stage Zone、Preflight 和正式彩排通过。
+A6 Legacy 切流门
+P1 阶段
+只读镜像、影子调度、HIL、回滚与站点白名单通过。
+
+13.3 开工检查表
+检查
+状态
+责任人/证据
+新仓库、主分支保护、CODEOWNERS 和 CI
+□
+
+Cursor Rules、隐私/安全审批与 Secret 策略
+□
+
+Legacy 仓库只读访问与自动盘点任务
+□
+
+产品场景、P0/P1、目标型号和厂商负责人
+□
+
+Adapter/Command/Event/Task/Robot/Site Contract 评审会议
+□
+
+Simulator、TCK 和 HIL Lab 计划
+□
+
+PUDU 正式接入方式与测试账号
+□
+
+KEENON API/SDK/固件矩阵缺口清单
+□
+
+Unitree 目标型号、SDK、动作资产与现场安全负责人
+□
+
+首个 Sprint Issue、Owner、验收脚本和 Demo 日期
+□
+
+
+● 最终开工判断
+完成 A0 后即可修改新仓库；Legacy 旧仓第一阶段仅运行分析和基线测试。任何真实机器人控制代码只有在对应厂商资料、Adapter Contract 和安全边界通过后才进入主分支。
+
+
+附录 A｜建议的 Cursor Rules 全文
+建议拆分写入 .cursor/rules/*.mdc
+# AMYGO RaaS Engineering Core  1. 修改代码前，先列出受影响模块、文件、接口、数据库、风险和测试。 2. 禁止在同一个 PR 中同时进行大规模重构和新功能开发。 3. 厂商 API、SDK、DTO、错误码只能存在于对应 Adapter 模块。 4. Domain 层禁止依赖 PUDU、KEENON、Unitree、Zeus 或其他厂商类型。 5. 不允许简单地将 Car 改名为 Robot，或将 Order 改名为 Task。 6. 任何机器人命令必须包含 commandId、correlationId、tenantId、siteId、    robotId、expiresAt、idempotencyKey 和 actor。 7. 所有重复命令、重复 Webhook、乱序事件、超时和重启必须安全处理。 8. 云端禁止发送速度、转向角、关节角、力矩或连续低层运动控制。 9. 所有人工高风险控制、权限、资产和配置变化必须写入 Audit Log。 10. 所有业务查询和写入必须强制 tenant/site 隔离；不信任请求体 tenantId。 11. 数据库变更必须通过版本化 migration，禁止手工修改生产库。 12. Legacy 代码修改前必须先补 Characterization Test。 13. 新 API、事件或数据库变化必须同步更新 OpenAPI/schema/sample/contract test。 14. 禁止提交 Secret、Token、证书、客户隐私数据和生产日志。 15. Cursor 不得编造厂商 API；无正式资料时只能实现 Port、Mock 和待确认项。 16. 不支持的能力必须显式返回 CAPABILITY_NOT_SUPPORTED。 17. 每次任务结束必须运行 build、unit、integration、contract、lint 和 migration 检查。 18. 输出必须包含变更文件、行为差异、测试证据、未解决问题和回滚办法。
+
+附录 B｜Cursor 第一条指令：只读资产盘点
+你现在负责把现有 fms2026 和 app-android2026 演进为新的 RaaS 平台。  第一阶段只分析，不允许修改任何业务代码。  目标： 1. 盘点 fms2026 的 Maven 模块、Spring Controller、Service、Repository、    JPA Entity、Netty Handler、WebSocket、配置和数据库关系。 2. 盘点 app-android2026 的三个 Android 工程、Retrofit API、DTO、    订单状态、地图绑定、本地数据库以及 TCP/UDP 控制代码。 3. 生成：    docs/legacy/modules.md    docs/legacy/spring-endpoints.md    docs/legacy/database-entities.md    docs/legacy/vcm-protocol.md    docs/legacy/websocket-events.md    docs/legacy/android-api-calls.md    docs/legacy/dependency-graph.md    docs/legacy/security-findings.md    docs/legacy/behavior-baseline.md    docs/legacy/migration-matrix.md 4. migration-matrix 中每个模块、包、主要类和接口必须标记：    KEEP、EXTRACT、WRAP、REWRITE 或 RETIRE。 5. 不允许将 Car 简单改名为 Robot，或将 Order 简单改名为 Task。 6. 不允许修改现有数据库、接口和协议。 7. 不允许编造 PUDU、KEENON 或 Unitree API。 8. 发现 Secret、固定 IP、危险低层控制或鉴权问题时，只记录，不自行修改。 9. 报告完成后，给出新 raas-platform 目录和第一个    Simulator → Task → Scheduler → Adapter → Event → Console    纵向闭环的文件级开发计划。 10. 输出所有发现对应的具体文件路径和类名。  完成分析后停止，等待代码审查，不要继续自动重构。
+
+附录 C｜Cursor 第二条指令：建立新平台骨架
+基于已批准的 docs/legacy 报告和本附加文档，建立新 raas-platform 骨架。  约束： - 不修改 fms2026 和 app-android2026。 - 使用模块化单体 Control Plane，Edge/Adapter 独立。 - 首先只实现 Simulator，不接真实厂商 SDK。 - Domain 不得依赖厂商类型。 - 先输出文件级计划，等待确认后再生成代码。  首批产出： 1. 项目目录、构建和 CI； 2. tenant/site/robot/profile/capability 基础模型； 3. Task/Assignment/ExecutionAttempt/Command/Event 状态机； 4. Adapter SDK、Simulator 与 Adapter TCK； 5. PostgreSQL migration、Outbox、审计； 6. Create Task → Scheduler → Simulator → Event → Console 纵向闭环； 7. 对重复命令、重复/乱序事件、超时、取消与重启的自动化测试。  每一步报告修改文件、Contract、migration、测试和回滚方式。
+
+附录 D｜标准错误模型与事件分类
+标准错误类别
+示例
+默认处理
+CAPABILITY_NOT_SUPPORTED
+型号不支持暂停/开柜/清洁模式
+不重试；换资源或人工处理
+ROBOT_NOT_READY
+离线、低电、未定位、维护中
+等待/改派；告警视严重度
+COMMAND_REJECTED
+厂商明确拒绝
+按原因补偿；不盲重试
+COMMAND_STATUS_UNKNOWN
+超时且无法确认是否接收
+查询/等待事件；禁止重复执行
+RATE_LIMITED
+厂商限流
+指数退避；遵守 expiresAt
+AUTHENTICATION_FAILED
+Token/证书失效
+停止下发；高优先级告警
+VENDOR_TEMPORARY_ERROR
+厂商服务暂时不可用
+有限重试；达到阈值熔断
+VENDOR_PERMANENT_ERROR
+请求/配置不合法
+不重试；需修复配置或代码
+SAFETY_BLOCKED
+E-Stop、保护停机、场地预检失败
+禁止自动恢复；现场确认
+
+事件域
+示例事件
+Robot
+robot.connected / snapshot.updated / safety.changed / maintenance.due
+Task
+task.created / assigned / dispatching / running / completed / failed / canceled
+Command
+command.received / accepted / rejected / unknown / expired
+Facility
+elevator.requested / arrived / failed；compartment.opened / timeout
+Show
+asset.validated / preflight.failed / show.armed / cue.started / show.aborted / completed
+Alert/Audit
+alert.opened / incident.escalated / operator.action / permission.changed
+
+● 文档结束
+下一步应先把附录 A 写入仓库规则，把附录 B 作为 Cursor 第一条任务执行；完成只读盘点并通过评审后，再执行附录 C。
+

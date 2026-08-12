@@ -1,0 +1,12 @@
+---
+description: Domain model and state machine rules
+alwaysApply: true
+---
+
+# Domain Model
+
+- Use Task + Assignment + ExecutionAttempt + Command + Event. Do not collapse into a single status field.
+- Task terminal states (SUCCEEDED/FAILED/CANCELED) must not return to RUNNING; recovery creates a new attempt/task.
+- Robot state is multi-dimensional: connectivity, operational, mission, battery, localization, safety, maintenance.
+- Task status is not Robot status. Offline robots do not auto-fail tasks without policy.
+- One active assignment per task; one primary lease per robot.
