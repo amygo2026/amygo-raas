@@ -1,22 +1,22 @@
--- AMYGO RaaS Control Plane schema v1 (MVP baseline)
--- All business tables carry tenant_id. Outbox is append-oriented.
+-- AMYGO RaaS Control Plane schema v1
+-- Compatible with PostgreSQL; H2 runs in PostgreSQL mode for local/CI.
 
-CREATE TABLE tenant (
+CREATE TABLE IF NOT EXISTS tenant (
     id              VARCHAR(64) PRIMARY KEY,
     name            VARCHAR(200) NOT NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE site (
+CREATE TABLE IF NOT EXISTS site (
     id              VARCHAR(64) PRIMARY KEY,
     tenant_id       VARCHAR(64) NOT NULL,
     name            VARCHAR(200) NOT NULL,
     timezone        VARCHAR(64) NOT NULL DEFAULT 'UTC',
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_site_tenant ON site (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_site_tenant ON site (tenant_id);
 
-CREATE TABLE robot (
+CREATE TABLE IF NOT EXISTS robot (
     id              VARCHAR(64) PRIMARY KEY,
     tenant_id       VARCHAR(64) NOT NULL,
     site_id         VARCHAR(64) NOT NULL,
@@ -31,13 +31,13 @@ CREATE TABLE robot (
     safety_status       VARCHAR(32) NOT NULL,
     maintenance_status  VARCHAR(32) NOT NULL,
     lease_task_id   VARCHAR(64),
-    lease_expires_at TIMESTAMPTZ,
+    lease_expires_at TIMESTAMP WITH TIME ZONE,
     version         BIGINT NOT NULL DEFAULT 0,
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_robot_tenant_site ON robot (tenant_id, site_id);
+CREATE INDEX IF NOT EXISTS idx_robot_tenant_site ON robot (tenant_id, site_id);
 
-CREATE TABLE task (
+CREATE TABLE IF NOT EXISTS task (
     id              VARCHAR(64) PRIMARY KEY,
     tenant_id       VARCHAR(64) NOT NULL,
     site_id         VARCHAR(64) NOT NULL,
@@ -47,33 +47,33 @@ CREATE TABLE task (
     assigned_robot_id VARCHAR(64),
     active_assignment_id VARCHAR(64),
     version         BIGINT NOT NULL DEFAULT 0,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_task_tenant_site_status ON task (tenant_id, site_id, status);
+CREATE INDEX IF NOT EXISTS idx_task_tenant_site_status ON task (tenant_id, site_id, status);
 
-CREATE TABLE assignment (
+CREATE TABLE IF NOT EXISTS assignment (
     id              VARCHAR(64) PRIMARY KEY,
     tenant_id       VARCHAR(64) NOT NULL,
     task_id         VARCHAR(64) NOT NULL,
     robot_id        VARCHAR(64) NOT NULL,
     status          VARCHAR(32) NOT NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_assignment_task ON assignment (task_id);
+CREATE INDEX IF NOT EXISTS idx_assignment_task ON assignment (task_id);
 
-CREATE TABLE execution_attempt (
+CREATE TABLE IF NOT EXISTS execution_attempt (
     id              VARCHAR(64) PRIMARY KEY,
     tenant_id       VARCHAR(64) NOT NULL,
     assignment_id   VARCHAR(64) NOT NULL,
     attempt_no      INT NOT NULL,
     status          VARCHAR(32) NOT NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE command_record (
+CREATE TABLE IF NOT EXISTS command_record (
     id              VARCHAR(64) PRIMARY KEY,
     tenant_id       VARCHAR(64) NOT NULL,
     site_id         VARCHAR(64) NOT NULL,
@@ -84,12 +84,12 @@ CREATE TABLE command_record (
     correlation_id  VARCHAR(64) NOT NULL,
     status          VARCHAR(32) NOT NULL,
     payload_json    CLOB NOT NULL,
-    expires_at      TIMESTAMPTZ NOT NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_command_idempotency UNIQUE (tenant_id, idempotency_key)
+    expires_at      TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE UNIQUE INDEX IF NOT EXISTS uq_command_idempotency ON command_record (tenant_id, idempotency_key);
 
-CREATE TABLE robot_event (
+CREATE TABLE IF NOT EXISTS robot_event (
     id              VARCHAR(64) PRIMARY KEY,
     tenant_id       VARCHAR(64) NOT NULL,
     site_id         VARCHAR(64) NOT NULL,
@@ -101,25 +101,24 @@ CREATE TABLE robot_event (
     source          VARCHAR(64) NOT NULL,
     correlation_id  VARCHAR(64),
     payload_json    CLOB NOT NULL,
-    occurred_at     TIMESTAMPTZ NOT NULL,
-    received_at     TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_event_id UNIQUE (id)
+    occurred_at     TIMESTAMP WITH TIME ZONE NOT NULL,
+    received_at     TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_robot_event_robot_seq ON robot_event (source, robot_id, sequence_no);
+CREATE INDEX IF NOT EXISTS idx_robot_event_robot_seq ON robot_event (source, robot_id, sequence_no);
 
-CREATE TABLE outbox (
-    id              BIGSERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS outbox (
+    id              BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     tenant_id       VARCHAR(64) NOT NULL,
     aggregate_type  VARCHAR(64) NOT NULL,
     aggregate_id    VARCHAR(64) NOT NULL,
     event_type      VARCHAR(100) NOT NULL,
     payload_json    CLOB NOT NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    published_at    TIMESTAMPTZ
+    created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    published_at    TIMESTAMP WITH TIME ZONE
 );
 
-CREATE TABLE audit_log (
-    id              BIGSERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS audit_log (
+    id              BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     tenant_id       VARCHAR(64) NOT NULL,
     actor_type      VARCHAR(32) NOT NULL,
     actor_id        VARCHAR(128) NOT NULL,
@@ -127,6 +126,18 @@ CREATE TABLE audit_log (
     object_type     VARCHAR(64) NOT NULL,
     object_id       VARCHAR(64) NOT NULL,
     detail_json     CLOB NOT NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_audit_tenant_time ON audit_log (tenant_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_tenant_time ON audit_log (tenant_id, created_at);
+
+CREATE TABLE IF NOT EXISTS legacy_id_mapping (
+    id              BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    tenant_id       VARCHAR(64) NOT NULL,
+    source_system   VARCHAR(64) NOT NULL,
+    legacy_type     VARCHAR(64) NOT NULL,
+    legacy_id       VARCHAR(128) NOT NULL,
+    raas_type       VARCHAR(64) NOT NULL,
+    raas_id         VARCHAR(64) NOT NULL,
+    created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_legacy_map ON legacy_id_mapping (tenant_id, source_system, legacy_type, legacy_id);

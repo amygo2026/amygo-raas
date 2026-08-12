@@ -1,0 +1,80 @@
+openapi: 3.0.3
+info:
+  title: AMYGO RaaS Control Plane API
+  version: 0.1.0
+  description: Week 1 MVP vertical-loop API (Simulator-backed)
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/tasks:
+    get:
+      summary: List tasks for tenant/site
+      parameters:
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-Site-Id
+          schema: { type: string }
+      responses:
+        '200':
+          description: Task list
+    post:
+      summary: Create and queue a delivery task
+      parameters:
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-Site-Id
+          schema: { type: string }
+        - in: header
+          name: X-Actor-Id
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                taskType: { type: string, example: DELIVERY }
+                payload: { type: object }
+      responses:
+        '201':
+          description: Created task
+  /api/v1/tasks/{taskId}:
+    get:
+      summary: Get task
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Task }
+  /api/v1/tasks/{taskId}/cancel:
+    post:
+      summary: Cancel task
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Canceled task }
+  /api/v1/robots:
+    get:
+      summary: List robots
+      responses:
+        '200': { description: Robots }
+  /api/v1/events:
+    get:
+      summary: List robot/task events
+      responses:
+        '200': { description: Events }
+  /api/v1/audit:
+    get:
+      summary: List audit entries
+      responses:
+        '200': { description: Audit log }

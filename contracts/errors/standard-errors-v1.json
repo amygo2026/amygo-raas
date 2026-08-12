@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amygo.ai/raas/contracts/errors/standard-errors-v1.json",
+  "title": "StandardError",
+  "type": "object",
+  "required": ["code", "category", "message", "retryable"],
+  "properties": {
+    "code": { "type": "string" },
+    "category": {
+      "type": "string",
+      "enum": [
+        "CAPABILITY_NOT_SUPPORTED",
+        "ROBOT_NOT_READY",
+        "COMMAND_REJECTED",
+        "COMMAND_STATUS_UNKNOWN",
+        "RATE_LIMITED",
+        "AUTHENTICATION_FAILED",
+        "VENDOR_TEMPORARY_ERROR",
+        "VENDOR_PERMANENT_ERROR",
+        "SAFETY_BLOCKED"
+      ]
+    },
+    "message": { "type": "string" },
+    "retryable": { "type": "boolean" },
+    "vendorCode": { "type": ["string", "null"] },
+    "details": { "type": "object" }
+  }
+}

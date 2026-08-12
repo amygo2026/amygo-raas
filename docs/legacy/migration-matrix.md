@@ -1,19 +1,27 @@
-# Legacy asset inventory (initial)
+# Migration matrix
 
-Generated from prior analysis of `../fms2026` and `../app-android2026`.
-Phase 1 is read-only: no Legacy business code changes in this repo.
+Disposition tags: KEEP | EXTRACT | WRAP | REWRITE | RETIRE
 
-## Modules
+| Asset | Path / class area | Disposition | Target in amygo-raas | Notes |
+|---|---|---|---|---|
+| appserver auth/JWT patterns | com-amygo-appserver | EXTRACT + REWRITE | identity | Keep experience, new OIDC |
+| Order lifecycle rules | appserver OrderService | EXTRACT + REWRITE | service-mission | Map to Task/Assignment/Attempt |
+| infoInitial availability | appserver OrderController | EXTRACT | tenant-site + scheduler | Fence/hours/capacity |
+| FMS RBAC | fms Administrator/Role/Menu/Resource | EXTRACT + REWRITE | identity + console-web | New UI |
+| FMS fence/region | SystemVariableController | EXTRACT + REWRITE | tenant-site | Station/Zone model |
+| FMS track/status | CarStatus* | EXTRACT + REWRITE | robot-profile + events | Multi-dim robot state |
+| FMS remote steer/accel | CarRemoteControl* | RETIRE (cloud) / WRAP if needed | none / legacy-zeus only | Forbidden as cloud command |
+| VCM Netty protocol | com-amygo-vcm | WRAP | adapters/legacy-zeus | P1 |
+| VCM low-level vehicle cmds | IPCVehicle* | RETIRE from cloud contract | — | Local/vendor only |
+| persis entities | com-amygo-persis | EXTRACT + REWRITE | db-migration | New schema + legacy_id |
+| website portal/cms | com-website-* | KEEP | outside MVP | Continue separately |
+| Amygo Retrofit APIs | NetwordLibrary | EXTRACT | contracts/openapi inspiration | New Task API |
+| Amygo order UX | app panels | EXTRACT | future requester app | Not MVP frontend |
+| AmygoPad | AmygoPad | EXTRACT | field assist later | |
+| SmartControl UDP teleop | SmartControl | RETIRE as cloud path | remote-assist concept only | Safety boundary |
+| Eureka discovery | discovery-eureka (bitbucket variant) | RETIRE | — | Not needed for modular monolith |
 
-| Legacy module | Path | Disposition | Target |
-|---|---|---|---|
-| com-amygo-appserver | fms2026/com-amygo/com-amygo-appserver | EXTRACT + REWRITE | identity, service-mission |
-| com-amygo-fms | fms2026/com-amygo/com-amygo-fms | EXTRACT + REWRITE | tenant-site, robot-profile, console-web, audit |
-| com-amygo-vcm | fms2026/com-amygo/com-amygo-vcm | WRAP + EXTRACT | adapters/legacy-zeus (P1) |
-| com-amygo-persis | fms2026/com-amygo/com-amygo-persis | EXTRACT + REWRITE | new schema + mapping |
-| com-website-* | fms2026/com-website | KEEP (outside MVP) | continue hosting separately |
-| Amygo app | app-android2026/Amygo | EXTRACT experience / REWRITE later | requester app (post-MVP) |
-| AmygoPad | app-android2026/AmygoPad | EXTRACT | field assist patterns |
-| SmartControl | app-android2026/SmartControl | RETIRE as cloud control / EXTRACT as remote-assist concept | not cloud low-level teleop |
-
-Detailed reports will be expanded under this folder (`spring-endpoints.md`, `vcm-protocol.md`, etc.).
+## Explicit non-migrations
+- Do not rename Car→Robot or Order→Task in Legacy code.
+- Do not reuse Thymeleaf ops UI.
+- Do not expose Zeus private protocol as platform kernel.

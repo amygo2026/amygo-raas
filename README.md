@@ -64,7 +64,13 @@ cd control-plane
 
 - `docs/product/` — PRD v1.1
 - `docs/engineering/` — development addendum V1.0
-- `docs/legacy/migration-matrix.md` — initial Legacy disposition
+- `docs/engineering/contracts-week1.md` — frozen contracts
+- `docs/engineering/week1-summary.md` — Week 1 development summary
+- `docs/legacy/` — Legacy inventory + migration matrix
+
+## Week 1 status
+
+Completed: Legacy inventory, contract freeze, Flyway/Outbox/Audit baseline, Simulator fault injection, Adapter TCK. See `docs/engineering/week1-summary.md`.
 
 ## Non-goals (enforced)
 

@@ -11,9 +11,11 @@ import ai.amygo.raas.domain.shared.RobotEvent;
 import ai.amygo.raas.persistence.InMemoryStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,21 +27,26 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
- * In-process simulator adapter. No vendor SDK.
- * Supports success path, idempotent submit, expired rejection, and delayed events.
+ * In-process simulator adapter with fault-injection modes.
+ * No vendor SDK. Profiles: sim.delivery.v1 / sim.cleaning.v1 / sim.hotel.v1.
  */
 @Component
 public class SimulatorRobotAdapter implements RobotAdapter {
     private static final Logger log = LoggerFactory.getLogger(SimulatorRobotAdapter.class);
 
     private final InMemoryStore store;
+    private final String faultMode;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final Map<String, AtomicLong> sequences = new ConcurrentHashMap<>();
     private final CopyOnWriteArrayList<Consumer<RobotEvent>> listeners = new CopyOnWriteArrayList<>();
     private final Map<String, String> acceptedIdempotency = new ConcurrentHashMap<>();
 
-    public SimulatorRobotAdapter(InMemoryStore store) {
+    public SimulatorRobotAdapter(
+            InMemoryStore store,
+            @Value("${raas.simulator.fault-mode:none}") String faultMode
+    ) {
         this.store = store;
+        this.faultMode = faultMode == null ? "none" : faultMode;
     }
 
     @Override
@@ -49,7 +56,7 @@ public class SimulatorRobotAdapter implements RobotAdapter {
 
     @Override
     public Set<String> capabilities(String robotId) {
-        return Set.of("navigation", "delivery", "docking");
+        return Set.of("navigation", "delivery", "cleaning", "docking", "compartment");
     }
 
     @Override
@@ -61,7 +68,7 @@ public class SimulatorRobotAdapter implements RobotAdapter {
 
     @Override
     public CommandReceipt submit(CommandEnvelope command) {
-        if (command.expiresAt().isBefore(Instant.now())) {
+        if (command.expiresAt().isBefore(Instant.now()) || "expire".equalsIgnoreCase(faultMode)) {
             return new CommandReceipt(command.commandId(), CommandReceiptStatus.REJECTED, "COMMAND_EXPIRED", "expiresAt passed");
         }
         String prior = acceptedIdempotency.putIfAbsent(command.idempotencyKey(), command.commandId());
@@ -69,24 +76,26 @@ public class SimulatorRobotAdapter implements RobotAdapter {
             return new CommandReceipt(prior, CommandReceiptStatus.ACCEPTED, "IDEMPOTENT_REPLAY", "same idempotencyKey");
         }
 
-        if (!capabilities(command.robotId()).contains(mapCapability(command.commandType()))
-                && !"CANCEL".equals(command.commandType())) {
-            // DELIVERY_START maps to delivery
-            if (!"DELIVERY_START".equals(command.commandType()) && !"DELIVER".equals(command.commandType())) {
-                return new CommandReceipt(command.commandId(), CommandReceiptStatus.REJECTED,
-                        "CAPABILITY_NOT_SUPPORTED", command.commandType());
-            }
+        if ("fail_on_submit".equalsIgnoreCase(faultMode)) {
+            return new CommandReceipt(command.commandId(), CommandReceiptStatus.REJECTED,
+                    "VENDOR_TEMPORARY_ERROR", "simulator fault_mode=fail_on_submit");
         }
 
-        emit(command, "command.accepted", Map.of("commandType", command.commandType()));
-        scheduler.schedule(() -> simulateProgress(command), 300, TimeUnit.MILLISECONDS);
+        String capability = mapCapability(command.commandType());
+        if (!"CANCEL".equals(command.commandType()) && !capabilities(command.robotId()).contains(capability)) {
+            return new CommandReceipt(command.commandId(), CommandReceiptStatus.REJECTED,
+                    "CAPABILITY_NOT_SUPPORTED", command.commandType());
+        }
+
+        emit(command, "command.accepted", Map.of("commandType", command.commandType()), null);
+        scheduler.schedule(() -> simulateProgress(command), 200, TimeUnit.MILLISECONDS);
         return new CommandReceipt(command.commandId(), CommandReceiptStatus.ACCEPTED, null, "accepted by simulator");
     }
 
     @Override
     public CommandReceipt cancel(CommandEnvelope command) {
-        emit(command, "command.accepted", Map.of("commandType", "CANCEL"));
-        emit(command, "task.canceled", Map.of("reason", "operator_or_system_cancel"));
+        emit(command, "command.accepted", Map.of("commandType", "CANCEL"), null);
+        emit(command, "task.canceled", Map.of("reason", "operator_or_system_cancel"), null);
         return new CommandReceipt(command.commandId(), CommandReceiptStatus.ACCEPTED, null, "cancel accepted");
     }
 
@@ -97,54 +106,58 @@ public class SimulatorRobotAdapter implements RobotAdapter {
 
     private void simulateProgress(CommandEnvelope command) {
         try {
-            emit(command, "task.running", Map.of("progress", 10));
-            Thread.sleep(200);
-            emit(command, "task.progress.updated", Map.of("progress", 60));
-            Thread.sleep(200);
-            emit(command, "task.completed", Map.of("progress", 100, "result", "SUCCEEDED"));
+            if ("duplicate_events".equalsIgnoreCase(faultMode)) {
+                RobotEvent running = buildEvent(command, "task.running", Map.of("progress", 10), null);
+                publish(running);
+                publish(running); // duplicate same eventId must be ignored by control plane
+            } else if ("out_of_order".equalsIgnoreCase(faultMode)) {
+                // emit completed before running (control plane should not jump illegally)
+                emit(command, "task.completed", Map.of("progress", 100, "result", "SUCCEEDED"), 2L);
+                emit(command, "task.running", Map.of("progress", 10), 1L);
+            } else {
+                emit(command, "task.running", Map.of("progress", 10), null);
+                Thread.sleep(150);
+                emit(command, "task.progress.updated", Map.of("progress", 60), null);
+                Thread.sleep(150);
+                emit(command, "task.completed", Map.of("progress", 100, "result", "SUCCEEDED"), null);
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            emit(command, "task.failed", Map.of("reason", "interrupted"));
+            emit(command, "task.failed", Map.of("reason", "interrupted"), null);
         } catch (Exception e) {
             log.error("simulator failure", e);
-            emit(command, "task.failed", Map.of("reason", e.getMessage()));
+            emit(command, "task.failed", Map.of("reason", e.getMessage()), null);
         }
     }
 
-    private void emit(CommandEnvelope command, String eventType, Map<String, Object> payload) {
-        long seq = sequences.computeIfAbsent(command.robotId(), id -> new AtomicLong()).incrementAndGet();
-        RobotEvent event = new RobotEvent(
+    private void emit(CommandEnvelope command, String eventType, Map<String, Object> payload, Long forcedSeq) {
+        publish(buildEvent(command, eventType, payload, forcedSeq));
+    }
+
+    private RobotEvent buildEvent(CommandEnvelope command, String eventType, Map<String, Object> payload, Long forcedSeq) {
+        long seq = forcedSeq != null
+                ? forcedSeq
+                : sequences.computeIfAbsent(command.robotId(), id -> new AtomicLong()).incrementAndGet();
+        Object taskId = command.payload() == null ? null : command.payload().get("taskId");
+        Map<String, Object> body = new LinkedHashMap<>(payload == null ? Map.of() : payload);
+        return new RobotEvent(
                 Ids.newId(),
                 eventType,
                 "1.0",
                 command.tenantId(),
                 command.siteId(),
                 command.robotId(),
-                command.payload() == null ? null : String.valueOf(command.payload().getOrDefault("taskId", "")),
+                taskId == null ? null : taskId.toString(),
                 seq,
                 Instant.now(),
                 Instant.now(),
                 "SIMULATOR",
                 command.correlationId(),
-                payload
+                body
         );
-        // Fix taskId extraction
-        Object taskId = command.payload() == null ? null : command.payload().get("taskId");
-        event = new RobotEvent(
-                event.eventId(),
-                event.eventType(),
-                event.schemaVersion(),
-                event.tenantId(),
-                event.siteId(),
-                event.robotId(),
-                taskId == null ? null : taskId.toString(),
-                event.sequence(),
-                event.occurredAt(),
-                event.receivedAt(),
-                event.source(),
-                event.correlationId(),
-                event.payload()
-        );
+    }
+
+    private void publish(RobotEvent event) {
         for (Consumer<RobotEvent> listener : listeners) {
             listener.accept(event);
         }
@@ -155,6 +168,7 @@ public class SimulatorRobotAdapter implements RobotAdapter {
             case "DELIVERY_START", "DELIVER" -> "delivery";
             case "CLEAN", "CLEANING_START" -> "cleaning";
             case "RETURN_TO_DOCK" -> "docking";
+            case "OPEN_COMPARTMENT" -> "compartment";
             default -> commandType.toLowerCase();
         };
     }

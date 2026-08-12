@@ -3,6 +3,7 @@ package ai.amygo.raas.api;
 import ai.amygo.raas.application.MissionApplicationService;
 import ai.amygo.raas.domain.mission.Task;
 import ai.amygo.raas.domain.shared.Actor;
+import ai.amygo.raas.persistence.AuditRepository;
 import ai.amygo.raas.persistence.InMemoryStore;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,17 +29,20 @@ import java.util.Map;
 public class MissionController {
     private final MissionApplicationService missions;
     private final InMemoryStore store;
+    private final AuditRepository auditRepository;
     private final String defaultTenant;
     private final String defaultSite;
 
     public MissionController(
             MissionApplicationService missions,
             InMemoryStore store,
+            AuditRepository auditRepository,
             @Value("${raas.demo-tenant-id}") String defaultTenant,
             @Value("${raas.demo-site-id}") String defaultSite
     ) {
         this.missions = missions;
         this.store = store;
+        this.auditRepository = auditRepository;
         this.defaultTenant = defaultTenant;
         this.defaultSite = defaultSite;
     }
@@ -137,7 +141,7 @@ public class MissionController {
     @GetMapping("/audit")
     public Object audit(@RequestHeader(value = "X-Tenant-Id", required = false) String tenantHeader) {
         String tenantId = tenantHeader == null || tenantHeader.isBlank() ? defaultTenant : tenantHeader;
-        return store.listAudit(tenantId);
+        return auditRepository.list(tenantId);
     }
 
     private Map<String, Object> toTaskView(Task task) {

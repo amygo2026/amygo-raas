@@ -10,7 +10,9 @@ import ai.amygo.raas.domain.shared.CommandReceipt;
 import ai.amygo.raas.domain.shared.CommandReceiptStatus;
 import ai.amygo.raas.domain.shared.Ids;
 import ai.amygo.raas.domain.shared.RobotEvent;
+import ai.amygo.raas.persistence.AuditRepository;
 import ai.amygo.raas.persistence.InMemoryStore;
+import ai.amygo.raas.persistence.OutboxRepository;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,10 +31,19 @@ public class MissionApplicationService {
 
     private final InMemoryStore store;
     private final RobotAdapter adapter;
+    private final OutboxRepository outbox;
+    private final AuditRepository auditRepository;
 
-    public MissionApplicationService(InMemoryStore store, RobotAdapter adapter) {
+    public MissionApplicationService(
+            InMemoryStore store,
+            RobotAdapter adapter,
+            OutboxRepository outbox,
+            AuditRepository auditRepository
+    ) {
         this.store = store;
         this.adapter = adapter;
+        this.outbox = outbox;
+        this.auditRepository = auditRepository;
     }
 
     @PostConstruct
@@ -226,5 +237,7 @@ public class MissionApplicationService {
         entry.put("detail", detail);
         entry.put("createdAt", Instant.now().toString());
         store.appendAudit(entry);
+        auditRepository.append(tenantId, actor.type(), actor.id(), action, objectType, objectId, detail);
+        outbox.append(tenantId, objectType, objectId, action, detail);
     }
 }
